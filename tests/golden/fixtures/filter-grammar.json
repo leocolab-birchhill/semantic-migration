@@ -1,0 +1,54 @@
+{
+  "kind": "filter",
+  "description": "Looker filter grammar → Databricks SQL. Shapes taken from production failures: NULL,>=N comma lists (TAM building_rba CAST bug), exclusion tokens vs negative literals, wildcard and all-negation lists.",
+  "cases": [
+    {
+      "name": "NULL plus comparison list keeps nulls and compares numerically",
+      "field": "tam_buildings.building_rba",
+      "expression": "NULL,>=20000",
+      "expectedSql": "(`building_rba` >= 20000 OR `building_rba` IS NULL)"
+    },
+    {
+      "name": "leading-dash alphanumeric token is an exclusion, not a negative literal",
+      "field": "building_monthly_financials.account_number",
+      "expression": "-10630US",
+      "expectedSql": "(`account_number` <> '10630US' OR `account_number` IS NULL)"
+    },
+    {
+      "name": "fully numeric negative token is an equality literal",
+      "field": "building_monthly_financials.adjustment",
+      "expression": "-5",
+      "expectedSql": "`adjustment` = -5"
+    },
+    {
+      "name": "plain comma list becomes IN",
+      "field": "building_monthly_financials.fiscal_year",
+      "expression": "FY2024,FY2025",
+      "expectedSql": "`fiscal_year` IN ('FY2024', 'FY2025')"
+    },
+    {
+      "name": "wildcard becomes LIKE on string cast",
+      "field": "tam_buildings.building_name",
+      "expression": "%Tower%",
+      "expectedSql": "CAST(`building_name` AS STRING) LIKE '%Tower%'"
+    },
+    {
+      "name": "all-negation list excludes values but keeps nulls",
+      "field": "tam_buildings.region",
+      "expression": "-East,-West",
+      "expectedSql": "(`region` NOT IN ('East', 'West') OR `region` IS NULL)"
+    },
+    {
+      "name": "bare NULL is IS NULL",
+      "field": "building_monthly_financials.month_date",
+      "expression": "NULL",
+      "expectedSql": "`month_date` IS NULL"
+    },
+    {
+      "name": "-NULL is IS NOT NULL",
+      "field": "building_monthly_financials.month_date",
+      "expression": "-NULL",
+      "expectedSql": "`month_date` IS NOT NULL"
+    }
+  ]
+}

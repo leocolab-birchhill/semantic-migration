@@ -29,9 +29,18 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+/tmp-debug/
 
-# env files (can opt-in for committing if needed)
+# env files (never commit real secrets)
 .env*
+!.env.example
+!.envs.example
+.envs
+
+# large / sensitive migration dumps (keep edge-cases + draft YAML in git if desired)
+migrations/**/inventory.json
+migrations/**/harness/last-run.json
+migrations/**/harness/awaiting-local-fix.json
 
 # vercel
 .vercel

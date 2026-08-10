@@ -3,24 +3,49 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node --use-system-ca ./node_modules/next/dist/bin/next dev --webpack",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "node --use-system-ca ./node_modules/next/dist/bin/next start",
+    "lint": "eslint",
+    "worker": "node --use-system-ca --import tsx scripts/worker.ts",
+    "auth:databricks": "node --use-system-ca --import tsx scripts/ensure-databricks-auth.ts",
+    "start:local": "node --use-system-ca --import tsx scripts/start-local.ts",
+    "db:up": "docker compose up -d postgres",
+    "db:migrate": "node --use-system-ca --import tsx scripts/migrate.ts",
+    "db:test": "node --use-system-ca --import tsx scripts/test-lakebase.ts",
+    "cli:doctor": "node --use-system-ca --import tsx scripts/cli/doctor.ts",
+    "cli:discover": "node --use-system-ca --import tsx scripts/cli/discover.ts",
+    "cli:create-job": "node --use-system-ca --import tsx scripts/cli/create-job.ts",
+    "cli:job": "node --use-system-ca --import tsx scripts/cli/job-status.ts",
+    "cli:approve": "node --use-system-ca --import tsx scripts/cli/approve.ts",
+    "cli:draft": "node --use-system-ca --import tsx scripts/cli/draft.ts",
+    "cli:deploy": "node --use-system-ca --import tsx scripts/cli/deploy.ts",
+    "cli:parity": "node --use-system-ca --import tsx scripts/cli/parity.ts",
+    "test": "node --import tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
+    "dotenv": "^17.4.2",
+    "iron-session": "^8.0.4",
+    "jose": "^6.2.6",
     "next": "16.2.12",
+    "openai": "^7.3.0",
+    "pg": "^8.22.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "uuid": "^14.0.1",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.20.3",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "tailwindcss": "^4",
+    "tsx": "^4.23.5",
     "typescript": "^5"
   }
 }

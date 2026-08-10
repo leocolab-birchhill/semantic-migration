@@ -1,0 +1,68 @@
+{
+  "kind": "scaffold",
+  "description": "Simple passthrough dimensions from a real tam_buildings-shaped inventory: ${TABLE}.col refs (plain, backtick-quoted, no label, date with description) must scaffold deterministically with exact metadata.",
+  "metricViewName": "tam_buildings",
+  "dimensions": [
+    {
+      "name": "tam_buildings.building_id",
+      "type": "string",
+      "sql": "${TABLE}.building_id",
+      "label": "Building ID"
+    },
+    {
+      "name": "tam_buildings.market",
+      "type": "string",
+      "sql": "${TABLE}.`market`"
+    },
+    {
+      "name": "tam_buildings.snapshot_date",
+      "type": "date",
+      "sql": "${TABLE}.snapshot_date",
+      "label": "Snapshot Date",
+      "description": "Monthly snapshot date"
+    }
+  ],
+  "expected": {
+    "dimensions": [
+      {
+        "name": "building_id",
+        "expr": "building_id",
+        "display_name": "Building ID"
+      },
+      {
+        "name": "market",
+        "expr": "market",
+        "display_name": "Market"
+      },
+      {
+        "name": "snapshot_date",
+        "expr": "snapshot_date",
+        "display_name": "Snapshot Date",
+        "comment": "Monthly snapshot date",
+        "format": {
+          "type": "date",
+          "date_format": "year_month_day",
+          "leading_zeros": true
+        }
+      }
+    ],
+    "fieldMappingPairs": [
+      {
+        "lookerField": "tam_buildings.building_id",
+        "databricksField": "building_id",
+        "kind": "dimension"
+      },
+      {
+        "lookerField": "tam_buildings.market",
+        "databricksField": "market",
+        "kind": "dimension"
+      },
+      {
+        "lookerField": "tam_buildings.snapshot_date",
+        "databricksField": "snapshot_date",
+        "kind": "dimension"
+      }
+    ],
+    "scaffoldedBareNames": ["building_id", "market", "snapshot_date"]
+  }
+}

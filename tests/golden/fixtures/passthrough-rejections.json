@@ -1,0 +1,42 @@
+{
+  "kind": "scaffold",
+  "description": "Non-trivial dimensions must NOT scaffold: CASE logic, Looker parameters, hidden fields, arithmetic, and :: casts all stay on the LLM side of the boundary.",
+  "metricViewName": "building_monthly_financials",
+  "dimensions": [
+    {
+      "name": "building_monthly_financials.amount_selected",
+      "type": "number",
+      "sql": "CASE WHEN ${currency_selector} = 'CAD' THEN ${TABLE}.amount_cad ELSE ${TABLE}.amount_usd END",
+      "label": "Amount (Selected Currency)"
+    },
+    {
+      "name": "building_monthly_financials.currency_param",
+      "type": "string",
+      "sql": "${currency_selector}",
+      "label": "Currency"
+    },
+    {
+      "name": "building_monthly_financials.internal_key",
+      "type": "string",
+      "sql": "${TABLE}.internal_key",
+      "hidden": true
+    },
+    {
+      "name": "building_monthly_financials.total_area",
+      "type": "number",
+      "sql": "${TABLE}.office_area + ${TABLE}.retail_area",
+      "label": "Total Area"
+    },
+    {
+      "name": "building_monthly_financials.month_start",
+      "type": "date",
+      "sql": "${TABLE}.month_date::date",
+      "label": "Month Start"
+    }
+  ],
+  "expected": {
+    "dimensions": [],
+    "fieldMappingPairs": [],
+    "scaffoldedBareNames": []
+  }
+}
