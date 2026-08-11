@@ -1,33 +1,44 @@
 ---
 name: looker-databricks-migration
 description: >-
-  Operates the Looker-to-Databricks migration skill CLI: OpenAI one-shot YAML
-  draft plus per-table parity under migrations/, then local Cursor repair
-  against Databricks feedback with an accumulating cases/ edge-case repo.
-  Filesystem-only — no job database or web app. Use when working in
-  viewReconciliationAgent, Looker explores/tiles, metric views, parity
-  failures, or semantic layer migration. On every invocation, state
-  requirements then run the credentials/schema gate before discover/draft.
+  Operates the Looker-to-Databricks migration skill CLI with an inventory-first,
+  dependency-graph methodology: exhaustively inventory the Looker environment,
+  build a typed graph, propose atomic migration components, wait for approval,
+  then OpenAI one-shot YAML draft plus per-table parity under migrations/ with
+  local Cursor repair. Filesystem-only — no job database or web app. Use when
+  working in viewReconciliationAgent, Looker explores/tiles, metric views,
+  parity failures, semantic layer migration, dependency graphs, or migration
+  component planning. On every invocation, state requirements then run the
+  credentials/schema gate before inventory/plan/discover/draft.
 disable-model-invocation: true
 ---
 
 # Looker → Databricks Migration (skill CLI)
 
-OpenAI drafts **once**. You (local Cursor) own **all repair** using
-`harness/last-run.json` + `cases/`. Never call OpenAI diagnose.
+**Core principle:** Inventory exhaustively; migrate selectively.
 
-Artifacts are files under `migrations/<catalog.schema.table>/`. There is **no
-Postgres job DB** and **no web app**.
+An **atomic migration component** is the smallest independently deployable,
+testable, and reversible semantic contract serving a coherent business use
+case. It is **not** a LookML file, a source table, or an arbitrary connected
+subgraph. A component may depend on approved shared foundations or existing
+Databricks assets.
+
+OpenAI drafts **once** after approval. You (local Cursor) own **all repair**
+using `harness/last-run.json` + `cases/`. Never call OpenAI diagnose.
+
+Artifacts are files under `tmp-debug/` (planning) and
+`migrations/<catalog.schema.table>/` (execution). There is **no Postgres job
+DB** and **no web app**.
 
 ## First action on every invocation
 
-**Stop. Do not run discover / draft / deploy yet.**
+**Stop. Do not run inventory / plan / discover / draft / deploy yet.**
 
 1. **State requirements** (below).
 2. Soft prereqs → `npm run cli:doctor` → missing credentials → confirm target
    schemas.
-3. Only when doctor is green **and** schemas are confirmed → ask for
-   `catalog.schema.table`.
+3. Only when doctor is green **and** schemas are confirmed → begin
+   **inventory-first planning** (not table discover).
 
 Full protocol: [setup-auth.md](setup-auth.md).
 
@@ -75,29 +86,66 @@ Write confirmed names into `tmp-debug/scope-draft.json`
 1. `node_modules`, Databricks CLI, `.envs` from `.envs.example`
 2. `npm run cli:doctor` until all PASS
 3. Schema confirmation (section B)
-4. Ask for `catalog.schema.table`
+4. Run inventory → plan → **approval checkpoint** (do not migrate yet)
 
-## Core workflow
+## Planning workflow (inventory-first)
 
 ```
 requirements → doctor → confirm schemas
-  → discover → human edits scope (warehouse, include flags, schemas)
-  → draft (OpenAI once) → deploy → parity
-  → fail? patch draft/ + edge-case note → deploy → parity
-  → pass? human cli:publish --confirm
+  → cli:inventory → cli:plan
+  → present graph + components in chat (required response shape)
+  → human approves / merges / splits / defers
+  → ONLY THEN: discover/draft for approved component source tables
+  → deploy → parity → local fix → publish
 ```
 
 ```bash
 npm run cli:doctor
+npm run cli:inventory
+# optional filters: --project <name> --model <name> --max-explores 40
+npm run cli:plan
+# optional: --scope-mode consumer-parity|explore-retirement --both-scopes
+# WAIT for human approval of component-plan.yaml
+# Then for each approved component's primary source table(s):
 npm run cli:discover -- <catalog>.<schema>.<table>
-# edit tmp-debug/scope-draft.json
+# edit tmp-debug/scope-draft.json (warehouse, include flags, schemas)
 npm run cli:draft -- --scope tmp-debug/scope-draft.json
 npm run cli:deploy -- <catalog.schema.table>
 npm run cli:parity -- <catalog.schema.table>
 npm run cli:publish -- <catalog.schema.table> --confirm
 ```
 
-## Local fix loop
+### Deterministic vs model judgment
+
+| Deterministic (scripts/libs) | Model (you) |
+|------------------------------|-------------|
+| Inventory extraction, LookML parse, graph build, closures, cycles, overlap, manifest validation, Mermaid export | Business grain, component boundaries, ownership, ambiguity, chat rationale, foundation worthiness |
+
+Never invent graph edges with the model. Never begin migration without approval.
+
+### Scope modes
+
+Ask when it materially changes the plan:
+
+- **consumer-parity** — only fields/joins/sources required by selected dashboards, Looks, schedules, workflows
+- **explore-retirement** — full supported semantic contract of the Explore
+
+If unset: recommend one, or run `--both-scopes` and label both.
+
+### Required chat response after analysis
+
+1. **Inventory summary** — counts, coverage gaps, unresolved deps
+2. **Dependency graph** — Mermaid in chat (full if small; domain summary + per-component graphs + path to `tmp-debug/dependency-graph.json` if large)
+3. **Proposed components** — table: name, grain, root Explore, consumers, deps, scope, confidence, risks
+4. **Component details** — focused graph + rationale each
+5. **Recommended migration waves** — ordered with justification
+6. **Recommended first component** — valuable but bounded
+7. **Questions requiring human judgment**
+8. **Approval checkpoint** — ask what to approve / change / merge / split / defer; **do not migrate**
+
+Methodology detail: [references/component-methodology.md](references/component-methodology.md).
+
+## Local fix loop (after approved migration execution)
 
 When `cli:parity` exits non-zero (`harness/last-run.json` status `needs_fix`):
 
@@ -111,11 +159,15 @@ When `cli:parity` exits non-zero (`harness/last-run.json` status `needs_fix`):
 
 ## Hard rules
 
+- Inventory exhaustively; migrate selectively.
+- Never treat a LookML file, source table, or arbitrary connected graph as the default migration unit.
 - Never OpenAI diagnose / repair loops.
 - Never write to `dbt_production`; publish only via explicit `--confirm`.
 - Correctness = parity gates + Looker benchmarks, not generation.
-- Never read/print `.envs` secrets; never collect secrets in chat.
+- Never read/print `.envs` secrets; never collect secrets in chat; never put secrets in inventory/graph artifacts.
 - Always confirm dev/prod schema names before draft.
+- Always show a readable Mermaid graph during analysis.
+- Always wait for component approval before discover/draft/deploy.
 
 ## References
 
@@ -125,3 +177,7 @@ When `cli:parity` exits non-zero (`harness/last-run.json` status `needs_fix`):
 - [verification.md](verification.md)
 - [translation-guide.md](translation-guide.md)
 - [edge-cases.md](edge-cases.md)
+- [references/component-methodology.md](references/component-methodology.md)
+- [references/looker-dependency-rules.md](references/looker-dependency-rules.md)
+- [references/databricks-mapping.md](references/databricks-mapping.md)
+- [references/risk-and-validation-rules.md](references/risk-and-validation-rules.md)

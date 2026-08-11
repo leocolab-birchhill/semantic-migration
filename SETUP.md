@@ -38,7 +38,15 @@ npm run auth:databricks
 npm run cli:doctor
 ```
 
-6. In Cursor Agent chat: `/looker-databricks-migration`
+6. Inventory-first planning (approve components before migrating):
+
+```bash
+npm run cli:inventory
+npm run cli:plan
+```
+
+Then use Agent chat `/looker-databricks-migration` or continue with
+`cli:discover` for **approved** component source tables only.
 
 Never commit `.envs`. Never paste secrets into chat/issues/PRs.
 

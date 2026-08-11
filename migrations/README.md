@@ -2,6 +2,9 @@
 
 Per-table OpenAI draft + local Cursor fix artifacts (filesystem-only).
 
+Planning (inventory → dependency graph → component approval) happens first via
+`npm run cli:inventory` / `npm run cli:plan` and must be approved before draft.
+
 ```bash
 npm run cli:draft -- --scope tmp-debug/scope-draft.json
 ```

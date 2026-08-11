@@ -5,6 +5,8 @@
 | Command | Purpose |
 |---------|---------|
 | `npm run cli:doctor` | Preflight (Looker, OpenAI, Databricks auth/warehouses) |
+| `npm run cli:inventory` | Environment inventory + dependency graph → `tmp-debug/` |
+| `npm run cli:plan` | Propose atomic components → `component-plan.yaml` (wait for approval) |
 | `npm run cli:discover -- <cat>.<sch>.<table>` | Looker discovery → `tmp-debug/scope-draft.json` |
 | `npm run cli:draft -- --scope <file>` | OpenAI **one-shot** draft → `migrations/<table>/` |
 | `npm run cli:deploy -- <tableKey>` | Deploy `draft/` to Databricks **dev** schema |
@@ -13,12 +15,29 @@
 | `npm run auth:databricks` | Human browser login for CLI profile |
 | `npm test` | Unit + golden tests |
 
+### Inventory / plan flags
+
+```bash
+npm run cli:inventory -- --project gdi --model gdi --max-explores 40
+npm run cli:plan -- --scope-mode consumer-parity
+npm run cli:plan -- --both-scopes
+```
+
 ## Artifact layout
 
 ```
+tmp-debug/
+  inventory.json
+  dependency-graph.json
+  dependency-graph.mmd
+  component-plan.yaml
+  chat-graph-domain.mmd
+  component-graphs/<id>.mmd
+  scope-draft.json          # after approved discover
+
 migrations/<catalog.schema.table>/
   scope.json
-  inventory.json          # gitignored
+  inventory.json          # gitignored (per-table IR)
   draft/sql_view.sql
   draft/metric_view.yaml
   draft/field_mappings.json
@@ -40,4 +59,5 @@ cases/                    # shared library — commit to share
 
 1. Credentials gate + doctor
 2. Confirm schemas
-3. Discover → draft → deploy → parity → publish
+3. **Inventory → plan → human component approval**
+4. Discover → draft → deploy → parity → publish (approved components only)

@@ -6,6 +6,8 @@
   "scripts": {
     "auth:databricks": "node --use-system-ca --import tsx scripts/ensure-databricks-auth.ts",
     "cli:doctor": "node --use-system-ca --import tsx scripts/cli/doctor.ts",
+    "cli:inventory": "node --use-system-ca --import tsx scripts/cli/inventory.ts",
+    "cli:plan": "node --use-system-ca --import tsx scripts/cli/plan.ts",
     "cli:discover": "node --use-system-ca --import tsx scripts/cli/discover.ts",
     "cli:draft": "node --use-system-ca --import tsx scripts/cli/draft.ts",
     "cli:deploy": "node --use-system-ca --import tsx scripts/cli/deploy.ts",

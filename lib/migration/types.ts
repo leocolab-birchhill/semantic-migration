@@ -132,7 +132,10 @@ export interface DiscoveredExplore {
   confidence: DiscoveryConfidence;
   evidence: DiscoveryEvidence[];
   viewNames: string[];
-  /** Explores are migration units. */
+  /**
+   * Table-first discover still groups by explore; inventory-first planning
+   * promotes explores to atomic *component* roots (not source tables).
+   */
   role: "migration_unit";
 }
 
