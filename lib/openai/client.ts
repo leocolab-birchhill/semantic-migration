@@ -498,7 +498,9 @@ Rules:
 - Multiple metric views are allowed for different grains
 - Use dashboard_calc type for logic that does not belong in the semantic layer
 - Never include credentials or raw data
-- Target catalog: ${input.catalog}, source table: ${input.catalog}.${input.sourceSchema}.${input.sourceTable}, deploy schema: ${input.devSchema}
+- Target catalog: ${input.catalog}, base source table: ${input.catalog}.${input.sourceSchema}.${input.sourceTable}, deploy schema: ${input.devSchema}
+- RECREATE JOINS IN STAGING VIEW: Looker explores join multiple views (listed in inventory.joins). You MUST recreate these joins in the sql_view using LEFT JOINs. The sql_view should act as a wide, denormalized table that pre-joins the base table with all joined tables using their sqlOn or foreignKey conditions.
+- FAN-OUT WARNING: If a join is one-to-many, be careful with measure aggregations to avoid fan-out inflation. Pre-aggregate or use symmetric aggregate patterns if necessary.
 - When a metric_view sources a sql_view from this proposal, set source to ${input.catalog}.${input.devSchema}.<sql_view_name>
 - Metric view YAML keys: version ("1.1"), source, dimensions or fields (name, expr, and agent metadata), measures (name, expr, and agent metadata). Measures must be aggregate expressions.
 - SOURCE-ONLY EXPRS (critical — Databricks hard rule): every dimension and measure \`expr\` is resolved against the metric-view \`source\` table/view columns ONLY. It CANNOT reference other dimension or measure names in the same YAML (no Looker-style \${view.sibling_dim}). If LookML uses another explore field, either (a) inline that field's SQL into the expr, or (b) materialize the column on the sql_view and reference the source column. Prefer (a) for simple CASE/order dims; prefer (b) when the same derived column is reused widely.
@@ -519,7 +521,7 @@ PASSTHROUGH DIMENSIONS (critical — do not waste tokens):
 NAMING (critical for tile benchmarks):
 - Name the primary metric_view exactly after the Looker explore (e.g. explore tam_buildings → metric view tam_buildings). Do not append _metrics / _cad_default unless multiple grains truly require separate views.
 - For every field used by inventory.benchmarks / tileQueries, the metric-view measure/dimension name (databricksField) MUST equal the Looker bare field name (after the view prefix). Example: fct_tam_buildings.revenue_estimate_sum_customer_adjusted → measure name revenue_estimate_sum_customer_adjusted.
-- Implement Looker currency parameters inside expr (CASE / CAD default branch), do NOT rename benchmark measures to *_cad / *_usd unless Looker itself exposes separate _cad/_usd fields that tiles select.
+- Implement Looker currency parameters using native Databricks Metric View parameters. Emit a \`parameters\` block in the YAML (with \`name\`, \`data_type\`, and \`default\`). Reference the parameter in the \`expr\` (e.g. \`CASE WHEN currency_selector = 'CAD' THEN ...\`). Do NOT rename benchmark measures to *_cad / *_usd unless Looker itself exposes separate _cad/_usd fields that tiles select.
 - FULL EXPLORE EQUIVALENCE (required for measures + non-passthrough dims): emit EVERY inventory.measures entry and EVERY inventory.dimensions entry (the non-scaffolded list) with fieldMappings. The app merges scaffolded passthrough dims after your response.
 - Also cover ALL measures and dimensions referenced by benchmarks / dynamicFields, with databricksField names matching Looker bare names.
 - Always expose smokeBaselineFields and grainDimensions (with fieldMappings) when they are measures or non-scaffolded dims.

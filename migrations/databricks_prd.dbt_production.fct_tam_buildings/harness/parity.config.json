@@ -1,0 +1,302 @@
+{
+  "version": "1",
+  "tableKey": "databricks_prd.dbt_production.fct_tam_buildings",
+  "catalog": "databricks_prd",
+  "sourceSchema": "dbt_production",
+  "sourceTable": "fct_tam_buildings",
+  "devSchema": "semantic_migration_dev",
+  "warehouseId": "3a7aefa511e1ddfd",
+  "databricksHost": "https://adb-4200208477969544.4.azuredatabricks.net",
+  "decimalScale": 2,
+  "timezone": "UTC",
+  "jobId": "d8f48177-b3b7-4279-ab52-dba471250254",
+  "metricViewName": "V_skill_test_tam_buildings",
+  "tiles": [
+    {
+      "tileId": "dash:4161:89355",
+      "title": " TAM Metrics by Facility Type for All Selected Territories",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.sector",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.building_sf_occupied_by_account_adjusted_sum",
+        "fct_tam_buildings.avg_acct_sf_per_building_customer_adjusted",
+        "fct_tam_buildings.max_rate"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:94128",
+      "title": "# Buildings & Penetration by Facility Type",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.sector",
+        "fct_tam_buildings.customers_site_count_adjusted",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.building_penetration_customer_adjusted",
+        "fct_tam_buildings.customer_acv_year_sum_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.revenue_share_customer_adjusted",
+        "fct_tam_buildings.customer_gross_margin_customer_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:91341",
+      "title": "Annualized Revenue from Customers in TAM",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.customer_acv_year_sum_customer_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:91140",
+      "title": "Annualized Revenue from Customers Outside of TAM",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.customer_acv_year_sum_outside_tam"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:91343",
+      "title": "Building Penetration",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.building_penetration",
+        "fct_tam_buildings.building_penetration_customer_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:90672",
+      "title": "Characteristics of Building Owners in Selected Territories",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.owner_name",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.building_sf_occupied_by_account_adjusted_sum",
+        "fct_tam_buildings.avg_acct_sf_per_building_customer_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:90673",
+      "title": "Characteristics of Current GDI Customers in Selected Territories ",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.cust_parent_customer",
+        "fct_tam_buildings.customers_site_count_adjusted",
+        "fct_tam_buildings.customer_acv_year_sum_customer_adjusted",
+        "fct_tam_buildings.customer_gross_profit_sum_customer_adjusted",
+        "fct_tam_buildings.customer_gross_margin_customer_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:89423",
+      "title": "Characteristics of Local Accounts in Selected Territories",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.account",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.building_sf_occupied_by_account_adjusted_sum",
+        "fct_tam_buildings.avg_acct_sf_per_building_customer_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:90551",
+      "title": "Characteristics of National and Regional Accounts in Selected Territories",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.account",
+        "fct_tam_buildings.national_or_regional_account_flag",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.building_sf_occupied_by_account_adjusted_sum",
+        "fct_tam_buildings.avg_acct_sf_per_building_customer_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:90671",
+      "title": "Characteristics of Property Managers in Selected Territories",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.property_manager_name",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.building_sf_occupied_by_account_adjusted_sum",
+        "fct_tam_buildings.avg_acct_sf_per_building_customer_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:90667",
+      "title": "Characteristics of Tenants in Selected Territories",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.key_tenant_name",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.building_sf_occupied_by_account_adjusted_sum",
+        "fct_tam_buildings.avg_acct_sf_per_building_customer_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:91144",
+      "title": "Consolidated Facility Type by Territory",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.territory",
+        "fct_tam_buildings.consolidated_sector_2",
+        "fct_tam_buildings.consolidated_sector_2_sort",
+        "fct_tam_buildings.buildings_count_customer_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:91143",
+      "title": "Facility Type by Territory",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.territory",
+        "fct_tam_buildings.sector",
+        "fct_tam_buildings.sector_sort",
+        "fct_tam_buildings.buildings_count_customer_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:89394",
+      "title": "Market Share Metrics for All Selected Territories ",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.sector",
+        "fct_tam_buildings.customers_site_count_adjusted",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.building_penetration_customer_adjusted",
+        "fct_tam_buildings.customer_acv_year_sum_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.revenue_share_customer_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:91340",
+      "title": "Number of Buildings in TAM",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.buildings_count",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.buildings_count_coverage_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:91338",
+      "title": "Number of Customer Buildings in TAM",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.customers_site_count",
+        "fct_tam_buildings.customers_site_count_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:91141",
+      "title": "Number of Customer Buildings Outside of TAM",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.customers_site_count_outside_tam"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:94131",
+      "title": "Revenue & Share by Facility Type",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.sector",
+        "fct_tam_buildings.customers_site_count_adjusted",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.building_penetration_customer_adjusted",
+        "fct_tam_buildings.customer_acv_year_sum_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.revenue_share_customer_adjusted",
+        "fct_tam_buildings.customer_gross_margin_customer_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:91339",
+      "title": "Revenue Estimate in TAM",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:91342",
+      "title": "Revenue Share",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.revenue_share_customer_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:92376",
+      "title": "TAM Metrics of Selected Territories",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.territory",
+        "fct_tam_buildings.customers_site_count_adjusted",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.building_penetration_customer_adjusted",
+        "fct_tam_buildings.customer_acv_year_sum_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.revenue_share_customer_adjusted"
+      ],
+      "mandatory": true
+    },
+    {
+      "tileId": "dash:4161:91167",
+      "title": "Territories in Selected Geography",
+      "model": "gdi",
+      "explore": "tam_buildings",
+      "fields": [
+        "fct_tam_buildings.geo_label_for_map"
+      ],
+      "mandatory": true
+    }
+  ]
+}

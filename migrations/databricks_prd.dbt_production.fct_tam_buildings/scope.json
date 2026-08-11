@@ -1,0 +1,768 @@
+{
+  "tiles": [
+    {
+      "id": "dash:4161:89355",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [
+        "fct_tam_buildings.buildings_count_customer_adjusted desc"
+      ],
+      "title": " TAM Metrics by Facility Type for All Selected Territories",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.sector",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.building_sf_occupied_by_account_adjusted_sum",
+        "fct_tam_buildings.avg_acct_sf_per_building_customer_adjusted",
+        "fct_tam_buildings.max_rate"
+      ],
+      "explore": "tam_buildings",
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share",
+      "filterExpression": "matches_filter(${fct_tam_buildings.sector}, `-n.a.,-Unknown`) AND matches_filter(${fct_tam_buildings.sector}, `-NULL`)"
+    },
+    {
+      "id": "dash:4161:94128",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [
+        "fct_tam_buildings.buildings_count_customer_adjusted desc"
+      ],
+      "title": "# Buildings & Penetration by Facility Type",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.sector",
+        "fct_tam_buildings.customers_site_count_adjusted",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.building_penetration_customer_adjusted",
+        "fct_tam_buildings.customer_acv_year_sum_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.revenue_share_customer_adjusted",
+        "fct_tam_buildings.customer_gross_margin_customer_adjusted"
+      ],
+      "explore": "tam_buildings",
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share",
+      "filterExpression": "matches_filter(${fct_tam_buildings.sector}, `-n.a.,-Unknown`) AND matches_filter(${fct_tam_buildings.sector}, `-NULL`)"
+    },
+    {
+      "id": "dash:4161:91341",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [],
+      "title": "Annualized Revenue from Customers in TAM",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.customer_acv_year_sum_customer_adjusted"
+      ],
+      "explore": "tam_buildings",
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share"
+    },
+    {
+      "id": "dash:4161:91140",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [],
+      "title": "Annualized Revenue from Customers Outside of TAM",
+      "total": false,
+      "fields": [
+        "fct_tam_buildings.customer_acv_year_sum_outside_tam"
+      ],
+      "explore": "tam_buildings",
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share"
+    },
+    {
+      "id": "dash:4161:91343",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [],
+      "title": "Building Penetration",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.building_penetration",
+        "fct_tam_buildings.building_penetration_customer_adjusted"
+      ],
+      "explore": "tam_buildings",
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share"
+    },
+    {
+      "id": "dash:4161:90672",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [
+        "fct_tam_buildings.buildings_count_customer_adjusted desc"
+      ],
+      "title": "Characteristics of Building Owners in Selected Territories",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.owner_name",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.building_sf_occupied_by_account_adjusted_sum",
+        "fct_tam_buildings.avg_acct_sf_per_building_customer_adjusted"
+      ],
+      "explore": "tam_buildings",
+      "filters": {
+        "fct_tam_buildings.owner_name": "-NULL",
+        "fct_tam_buildings.include_in_tam_owner": "Yes"
+      },
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share"
+    },
+    {
+      "id": "dash:4161:90673",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [
+        "fct_tam_buildings.customers_site_count_adjusted desc"
+      ],
+      "title": "Characteristics of Current GDI Customers in Selected Territories ",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.cust_parent_customer",
+        "fct_tam_buildings.customers_site_count_adjusted",
+        "fct_tam_buildings.customer_acv_year_sum_customer_adjusted",
+        "fct_tam_buildings.customer_gross_profit_sum_customer_adjusted",
+        "fct_tam_buildings.customer_gross_margin_customer_adjusted"
+      ],
+      "explore": "tam_buildings",
+      "filters": {
+        "fct_tam_buildings.territory": "-NULL",
+        "fct_tam_buildings.cust_parent_customer": "-NULL",
+        "fct_tam_buildings.customer_match_status": "Matched: In TAM"
+      },
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share"
+    },
+    {
+      "id": "dash:4161:89423",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [
+        "fct_tam_buildings.buildings_count_customer_adjusted desc"
+      ],
+      "title": "Characteristics of Local Accounts in Selected Territories",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.account",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.building_sf_occupied_by_account_adjusted_sum",
+        "fct_tam_buildings.avg_acct_sf_per_building_customer_adjusted"
+      ],
+      "explore": "tam_buildings",
+      "filters": {
+        "fct_tam_buildings.account": "-NULL",
+        "fct_tam_buildings.national_or_regional_account_flag": "Local Account"
+      },
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share"
+    },
+    {
+      "id": "dash:4161:90551",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [],
+      "title": "Characteristics of National and Regional Accounts in Selected Territories",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.account",
+        "fct_tam_buildings.national_or_regional_account_flag",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.building_sf_occupied_by_account_adjusted_sum",
+        "fct_tam_buildings.avg_acct_sf_per_building_customer_adjusted"
+      ],
+      "explore": "tam_buildings",
+      "filters": {
+        "fct_tam_buildings.national_or_regional_account_flag": "National Account,Regional Account"
+      },
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share"
+    },
+    {
+      "id": "dash:4161:90671",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [
+        "fct_tam_buildings.buildings_count_customer_adjusted desc"
+      ],
+      "title": "Characteristics of Property Managers in Selected Territories",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.property_manager_name",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.building_sf_occupied_by_account_adjusted_sum",
+        "fct_tam_buildings.avg_acct_sf_per_building_customer_adjusted"
+      ],
+      "explore": "tam_buildings",
+      "filters": {
+        "fct_tam_buildings.property_manager_name": "-NULL",
+        "fct_tam_buildings.include_in_tam_property_manager": "Yes"
+      },
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share"
+    },
+    {
+      "id": "dash:4161:90667",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [
+        "fct_tam_buildings.buildings_count_customer_adjusted desc"
+      ],
+      "title": "Characteristics of Tenants in Selected Territories",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.key_tenant_name",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.building_sf_occupied_by_account_adjusted_sum",
+        "fct_tam_buildings.avg_acct_sf_per_building_customer_adjusted"
+      ],
+      "explore": "tam_buildings",
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share",
+      "filterExpression": "matches_filter(${fct_tam_buildings.include_in_tam_key_tenant}, `Yes`) AND matches_filter(${fct_tam_buildings.key_tenant_name}, `-N/A`) AND matches_filter(${fct_tam_buildings.key_tenant_name}, `-NULL`)"
+    },
+    {
+      "id": "dash:4161:91144",
+      "role": "validation_benchmark",
+      "limit": 5000,
+      "model": "gdi",
+      "sorts": [
+        "fct_tam_buildings.consolidated_sector_2_sort",
+        "fct_tam_buildings.consolidated_sector_2",
+        "fct_tam_buildings.territory"
+      ],
+      "title": "Consolidated Facility Type by Territory",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.territory",
+        "fct_tam_buildings.consolidated_sector_2",
+        "fct_tam_buildings.consolidated_sector_2_sort",
+        "fct_tam_buildings.buildings_count_customer_adjusted"
+      ],
+      "pivots": [
+        "fct_tam_buildings.consolidated_sector_2",
+        "fct_tam_buildings.consolidated_sector_2_sort"
+      ],
+      "explore": "tam_buildings",
+      "filters": {
+        "fct_tam_buildings.consolidated_sector_2": "-NULL"
+      },
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share",
+      "filterExpression": "matches_filter(${fct_tam_buildings.consolidated_sector_2}, `-Residential`)"
+    },
+    {
+      "id": "dash:4161:91143",
+      "role": "validation_benchmark",
+      "limit": 5000,
+      "model": "gdi",
+      "sorts": [
+        "fct_tam_buildings.territory",
+        "fct_tam_buildings.sector_sort"
+      ],
+      "title": "Facility Type by Territory",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.territory",
+        "fct_tam_buildings.sector",
+        "fct_tam_buildings.sector_sort",
+        "fct_tam_buildings.buildings_count_customer_adjusted"
+      ],
+      "pivots": [
+        "fct_tam_buildings.territory"
+      ],
+      "explore": "tam_buildings",
+      "filters": {
+        "fct_tam_buildings.sector": "-Residential,-Unknown,-n.a."
+      },
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share",
+      "filterExpression": "matches_filter(${fct_tam_buildings.sector}, `-NULL`)"
+    },
+    {
+      "id": "dash:4161:89394",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [
+        "fct_tam_buildings.customers_site_count_adjusted desc"
+      ],
+      "title": "Market Share Metrics for All Selected Territories ",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.sector",
+        "fct_tam_buildings.customers_site_count_adjusted",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.building_penetration_customer_adjusted",
+        "fct_tam_buildings.customer_acv_year_sum_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.revenue_share_customer_adjusted"
+      ],
+      "explore": "tam_buildings",
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share",
+      "filterExpression": "matches_filter(${fct_tam_buildings.sector}, `-Unknown,-n.a.`) AND matches_filter(${fct_tam_buildings.sector}, `-NULL`)"
+    },
+    {
+      "id": "dash:4161:91340",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [
+        "fct_tam_buildings.buildings_count desc"
+      ],
+      "title": "Number of Buildings in TAM",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.buildings_count",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.buildings_count_coverage_adjusted"
+      ],
+      "explore": "tam_buildings",
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share"
+    },
+    {
+      "id": "dash:4161:91338",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [],
+      "title": "Number of Customer Buildings in TAM",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.customers_site_count",
+        "fct_tam_buildings.customers_site_count_adjusted"
+      ],
+      "explore": "tam_buildings",
+      "filters": {
+        "fct_tam_buildings.customer_match_status": ""
+      },
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share"
+    },
+    {
+      "id": "dash:4161:91141",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [],
+      "title": "Number of Customer Buildings Outside of TAM",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.customers_site_count_outside_tam"
+      ],
+      "explore": "tam_buildings",
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dynamicFields": [
+        {
+          "raw": {
+            "type": "count_distinct",
+            "label": "Customer Sites Outside TAM",
+            "filters": {
+              "fct_tam_buildings.customer_match_status": "-Not a Customer,-Matched: In TAM"
+            },
+            "measure": "customer_sites_outside_tam",
+            "based_on": "fct_tam_buildings.customers_site_count_outside_tam",
+            "category": "measure",
+            "_kind_hint": "measure",
+            "_type_hint": "number",
+            "expression": null,
+            "value_format": null,
+            "value_format_name": null
+          },
+          "kind": "measure",
+          "name": "customer_sites_outside_tam",
+          "type": "count_distinct",
+          "label": "Customer Sites Outside TAM",
+          "basedOn": "fct_tam_buildings.customers_site_count_outside_tam",
+          "filters": {
+            "fct_tam_buildings.customer_match_status": "-Not a Customer,-Matched: In TAM"
+          },
+          "valueFormat": null,
+          "valueFormatName": null
+        }
+      ],
+      "dashboardTitle": "BSG Market Size and Market Share"
+    },
+    {
+      "id": "dash:4161:94131",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted desc"
+      ],
+      "title": "Revenue & Share by Facility Type",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.sector",
+        "fct_tam_buildings.customers_site_count_adjusted",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.building_penetration_customer_adjusted",
+        "fct_tam_buildings.customer_acv_year_sum_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.revenue_share_customer_adjusted",
+        "fct_tam_buildings.customer_gross_margin_customer_adjusted"
+      ],
+      "explore": "tam_buildings",
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dynamicFields": [
+        {
+          "raw": {
+            "label": "TAM Revenue Estimate ($MMs)",
+            "category": "table_calculation",
+            "_kind_hint": "measure",
+            "_type_hint": "number",
+            "expression": "${fct_tam_buildings.revenue_estimate_sum_customer_adjusted} / 1000000",
+            "value_format": null,
+            "table_calculation": "tam_revenue_estimate_mms",
+            "value_format_name": "usd_0"
+          },
+          "kind": "table_calculation",
+          "name": "tam_revenue_estimate_mms",
+          "type": "number",
+          "label": "TAM Revenue Estimate ($MMs)",
+          "expression": "${fct_tam_buildings.revenue_estimate_sum_customer_adjusted} / 1000000",
+          "valueFormat": null,
+          "valueFormatName": "usd_0"
+        }
+      ],
+      "dashboardTitle": "BSG Market Size and Market Share",
+      "filterExpression": "matches_filter(${fct_tam_buildings.sector}, `-n.a.,-Unknown`) AND matches_filter(${fct_tam_buildings.sector}, `-NULL`)"
+    },
+    {
+      "id": "dash:4161:91339",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [],
+      "title": "Revenue Estimate in TAM",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted"
+      ],
+      "explore": "tam_buildings",
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share"
+    },
+    {
+      "id": "dash:4161:91342",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [],
+      "title": "Revenue Share",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.revenue_share_customer_adjusted"
+      ],
+      "explore": "tam_buildings",
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share"
+    },
+    {
+      "id": "dash:4161:92376",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted desc"
+      ],
+      "title": "TAM Metrics of Selected Territories",
+      "total": true,
+      "fields": [
+        "fct_tam_buildings.territory",
+        "fct_tam_buildings.customers_site_count_adjusted",
+        "fct_tam_buildings.buildings_count_customer_adjusted",
+        "fct_tam_buildings.building_penetration_customer_adjusted",
+        "fct_tam_buildings.customer_acv_year_sum_customer_adjusted",
+        "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "fct_tam_buildings.revenue_share_customer_adjusted"
+      ],
+      "explore": "tam_buildings",
+      "filters": {
+        "fct_tam_buildings.branch": "",
+        "fct_tam_buildings.region": "",
+        "fct_tam_buildings.country": "",
+        "fct_tam_buildings.territory": "",
+        "fct_tam_buildings.vp_sales_name": "",
+        "fct_tam_buildings.bdm_sales_name": "",
+        "fct_tam_buildings.outside_geographic_tam": "F",
+        "fct_tam_buildings.parent_customer_filter": ""
+      },
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dashboardTitle": "BSG Market Size and Market Share"
+    },
+    {
+      "id": "dash:4161:91167",
+      "role": "validation_benchmark",
+      "limit": 500,
+      "model": "gdi",
+      "sorts": [
+        "fct_tam_buildings.geo_label_for_map"
+      ],
+      "title": "Territories in Selected Geography",
+      "total": false,
+      "fields": [
+        "fct_tam_buildings.geo_label_for_map"
+      ],
+      "explore": "tam_buildings",
+      "evidence": [
+        {
+          "kind": "query_view",
+          "detail": "tile uses explore gdi.tam_buildings"
+        }
+      ],
+      "confidence": "low",
+      "sourceKind": "dashboard_tile",
+      "dashboardId": "4161",
+      "dynamicFields": [
+        {
+          "raw": {
+            "type": "count_distinct",
+            "label": "Territory Index",
+            "measure": "territory_index",
+            "based_on": "fct_tam_buildings.geo_label_for_map",
+            "category": "measure",
+            "_kind_hint": "measure",
+            "_type_hint": "number",
+            "expression": null,
+            "value_format": null,
+            "value_format_name": null
+          },
+          "kind": "measure",
+          "name": "territory_index",
+          "type": "count_distinct",
+          "label": "Territory Index",
+          "basedOn": "fct_tam_buildings.geo_label_for_map",
+          "valueFormat": null,
+          "valueFormatName": null
+        },
+        {
+          "raw": {
+            "label": "Territory Index",
+            "category": "table_calculation",
+            "_kind_hint": "dimension",
+            "_type_hint": "number",
+            "expression": "row()",
+            "value_format": null,
+            "table_calculation": "territory_index_1",
+            "value_format_name": null
+          },
+          "kind": "table_calculation",
+          "name": "territory_index_1",
+          "type": "number",
+          "label": "Territory Index",
+          "expression": "row()",
+          "valueFormat": null,
+          "valueFormatName": null
+        }
+      ],
+      "dashboardTitle": "BSG Market Size and Market Share"
+    }
+  ],
+  "views": [],
+  "explores": [
+    {
+      "model": "gdi",
+      "explore": "tam_buildings"
+    },
+    {
+      "model": "gdi",
+      "explore": "tam_customer_bridge"
+    }
+  ],
+  "sourceTable": {
+    "table": "fct_tam_buildings",
+    "schema": "dbt_production",
+    "catalog": "databricks_prd"
+  }
+}

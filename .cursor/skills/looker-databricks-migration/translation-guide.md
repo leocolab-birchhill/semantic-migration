@@ -40,7 +40,7 @@ and add the emitted names to `scaffoldedPassthroughDimensions`-style
 
 ## Stays with the OpenAI one-shot draft (then Cursor may patch)
 
-- CASE/liquid/parameter dimensions
+- CASE/liquid dimensions and Looker parameters (which map to Databricks YAML parameters)
 - Sibling-field references: inline the sibling's SQL vs materialize a
   column on the staging view
 - Dashboard dynamic fields: custom measures (basedOn + filters → FILTER
@@ -64,7 +64,7 @@ using `cli:parity` failures — do not re-invoke OpenAI diagnose.
 3. **Empty aggregates**: Looker returns 0 for empty groups; Databricks
    `MEASURE()` returns null → wrap sum/count-style exprs in
    `COALESCE(expr, 0)` unless LookML preserves nulls.
-4. **YAML shape**: `version: "1.1"`, `source`, `dimensions`/`fields`,
+4. **YAML shape**: `version: "1.1"`, `source`, `parameters` (optional), `dimensions`/`fields`,
    `measures`; body only (the app wraps DDL); block scalars for any expr
    containing colons; never invent source columns.
 5. **Currency stems**: physical columns are usually `*_cad`/`*_usd`; bare

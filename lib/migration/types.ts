@@ -334,6 +334,7 @@ export interface FieldMappingTable {
 export interface MetricViewInventory {
   name: string;
   source?: string;
+  parameters?: Array<{ name: string; data_type: string; default?: unknown }>;
   dimensions: Array<{ name: string; expr?: string }>;
   measures: Array<{ name: string; expr?: string }>;
 }

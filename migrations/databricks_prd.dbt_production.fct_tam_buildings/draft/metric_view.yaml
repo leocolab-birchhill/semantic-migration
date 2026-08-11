@@ -1,0 +1,657 @@
+version: "1.1"
+source: databricks_prd.semantic_migration_dev.V_skill_test_tam_buildings_staging
+dimensions:
+  - name: sector
+    expr: |-
+      sector
+    display_name: Fct Tam Buildings Facility Type
+    comment: Detailed facility type used for granular TAM segmentation within the consolidated facility groups.
+  - name: owner_name
+    expr: |-
+      owner_name
+    display_name: Fct Tam Buildings Owner Name
+    comment: Building owner organization.
+    synonyms:
+      - Owner Name
+  - name: include_in_tam_owner
+    expr: |-
+      include_in_tam_owner
+    display_name: Fct Tam Buildings Include In Tam Owner (Yes / No)
+    synonyms:
+      - Include In Tam Owner
+  - name: cust_parent_customer
+    expr: |-
+      cust_parent_customer
+    display_name: Fct Tam Buildings Parent Customer
+    comment: Parent company rollup used for account-family analysis across multiple buildings and geographies.
+    synonyms:
+      - Cust Parent Customer
+  - name: territory
+    expr: |-
+      territory
+    display_name: Fct Tam Buildings Territory
+    comment: Primary sales territory used for day-to-day TAM planning and performance management.
+  - name: customer_match_status
+    expr: |-
+      customer_match_status
+    display_name: Fct Tam Buildings Customer Match Status
+    comment: "TAM qualification category for each building (for example Matched: In TAM, No Market ID, Excluded categories, Outside Geographic TAM). Use for customer bridge analysis; do not use this as the only filter for total TAM market sizing."
+    synonyms:
+      - Customer Match Status
+  - name: account
+    expr: |-
+      account
+    display_name: Fct Tam Buildings Account
+    comment: Selected decision-maker stakeholder for the building (for example tenant, owner, or property manager) used for account-level TAM analysis.
+  - name: account_number_buildings_total
+    expr: |-
+      account_number_buildings_total
+    display_name: "Fct Tam Buildings Account # Buildings"
+    format:
+      type: number
+    synonyms:
+      - Account Number Buildings Total
+      - Account Number Buildings
+  - name: account_sf_total
+    expr: |-
+      account_sf_total
+    display_name: Fct Tam Buildings Account Sf Total
+    format:
+      type: number
+    synonyms:
+      - Account Sf Total
+      - Account Sf
+  - name: national_or_regional_account_flag
+    expr: |-
+      national_or_regional_account_flag
+    display_name: Fct Tam Buildings National or Regional
+    synonyms:
+      - National Or Regional Account Flag
+  - name: property_manager_name
+    expr: |-
+      property_manager_name
+    display_name: Fct Tam Buildings Property Manager Name
+    comment: Property manager organization for the building.
+    synonyms:
+      - Property Manager Name
+  - name: include_in_tam_property_manager
+    expr: |-
+      include_in_tam_property_manager
+    display_name: Fct Tam Buildings Include In Tam Property Manager (Yes / No)
+    synonyms:
+      - Include In Tam Property Manager
+  - name: key_tenant_name
+    expr: |-
+      key_tenant_name
+    display_name: Fct Tam Buildings Key Tenant Name
+    comment: Key tenant associated with the building, used in stakeholder-level market and account analysis.
+    synonyms:
+      - Key Tenant Name
+  - name: include_in_tam_key_tenant
+    expr: |-
+      include_in_tam_key_tenant
+    display_name: Fct Tam Buildings Include In Tam Key Tenant (Yes / No)
+    synonyms:
+      - Include In Tam Key Tenant
+  - name: consolidated_sector_2
+    expr: |-
+      consolidated_sector_2_semantic
+    display_name: Fct Tam Buildings Consolidated Facility Type
+    comment: Top-level facility segmentation used for market sizing (Healthcare, Industrial, Manufacturing, Office, Residential, Retail, Specialty, Warehouse/Distribution).
+    synonyms:
+      - Consolidated Sector 2
+  - name: consolidated_sector_2_sort
+    expr: |-
+      consolidated_sector_2_sort_semantic
+    display_name: Fct Tam Buildings Consolidated Sector 2 Sort
+    format:
+      type: number
+    synonyms:
+      - Consolidated Sector 2 Sort
+  - name: sector_sort
+    expr: |-
+      sector_sort_semantic
+    display_name: Fct Tam Buildings Sector Sort
+    format:
+      type: number
+    synonyms:
+      - Sector Sort
+  - name: branch
+    expr: |-
+      branch
+    display_name: Fct Tam Buildings Branch
+    comment: Operational branch location used for local service delivery (part of Region -> Territory -> Branch hierarchy).
+  - name: region
+    expr: |-
+      region
+    display_name: Fct Tam Buildings Region
+    comment: Top-level sales geography used for leadership reporting and security filtering.
+  - name: country
+    expr: |-
+      country
+    display_name: Fct Tam Buildings Country
+    comment: Country for the building location (United States or Canada).
+  - name: vp_sales_name
+    expr: |-
+      vp_sales_name
+    display_name: Fct Tam Buildings Sales VP Name
+    synonyms:
+      - Vp Sales Name
+  - name: bdm_sales_name
+    expr: |-
+      bdm_sales_name
+    display_name: Fct Tam Buildings Sales BDM Name
+    synonyms:
+      - Bdm Sales Name
+  - name: outside_geographic_tam
+    expr: |-
+      outside_geographic_tam
+    display_name: Fct Tam Buildings View Customers Outside of Geographic TAM?
+    comment: Flag used to identify customer records outside the formal geographic TAM definition.
+    synonyms:
+      - Outside Geographic Tam
+  - name: geo_label_for_map
+    expr: |-
+      territory
+    display_name: Fct Tam Buildings Geo Label for Map
+    comment: Map-ready geography label based on territory. Use this for choropleth/map-layer visualizations with the custom GDI regions layer.
+    synonyms:
+      - Geo Label For Map
+  - name: include_in_tam_account
+    expr: |-
+      include_in_tam_account
+    display_name: Fct Tam Buildings Include In Tam Account (Yes / No)
+    synonyms:
+      - Include In Tam Account
+  - name: in_extended_tam_scope_flag
+    expr: |-
+      in_extended_tam_scope_flag_default
+    display_name: Fct Tam Buildings In Extended Tam Scope Flag (Yes / No)
+    synonyms:
+      - In Extended Tam Scope Flag
+  - name: naics_code
+    expr: |-
+      naics_code_semantic
+    display_name: Fct Tam Buildings Naics Code
+    synonyms:
+      - Naics Code
+  - name: address
+    expr: |-
+      address
+    display_name: Fct Tam Buildings Address
+  - name: building_name
+    expr: |-
+      building_name
+    display_name: Fct Tam Buildings Building Name
+    synonyms:
+      - Building Name
+  - name: building_rba
+    expr: |-
+      building_rba
+    display_name: Fct Tam Buildings Building Square Footage
+    comment: Rentable Building Area (RBA) in square feet. Primary size field used in TAM qualification and revenue potential calculations.
+    format:
+      type: number
+    synonyms:
+      - Building Rba
+  - name: building_status
+    expr: |-
+      building_status
+    display_name: Fct Tam Buildings Building Status
+    comment: Lifecycle status of the building (for example Existing, Under Construction, Demolished). Existing buildings are typically the TAM-eligible population.
+    synonyms:
+      - Building Status
+  - name: city
+    expr: |-
+      city
+    display_name: Fct Tam Buildings City
+    comment: City where the building is located.
+  - name: cust_original_building_id
+    expr: |-
+      cust_original_building_id
+    display_name: Fct Tam Buildings Cust Original Building ID
+    synonyms:
+      - Cust Original Building Id
+  - name: cust_unified_building_id
+    expr: |-
+      cust_unified_building_id
+    display_name: Fct Tam Buildings Customer ID
+    comment: Unified customer-system building identifier used for customer-level distinct counts and customer match metrics.
+    synonyms:
+      - Cust Unified Building Id
+  - name: customer_sf_estimate
+    expr: |-
+      customer_sf_estimate
+    display_name: Fct Tam Buildings Customer SF Estimate (with No Market Data)
+    comment: Estimated customer square footage used when market data is missing (No Market ID) so customer-adjusted TAM measures remain inclusive.
+    format:
+      type: number
+    synonyms:
+      - Customer Sf Estimate
+  - name: secondary_type
+    expr: |-
+      secondary_type
+    display_name: Fct Tam Buildings Facility Subtype
+    synonyms:
+      - Secondary Type
+  - name: is_current_customer
+    expr: |-
+      is_current_customer
+    display_name: Fct Tam Buildings Is Current Customer (Yes / No)
+    comment: Yes if the building is currently serviced by GDI; No for prospects/non-customers.
+    synonyms:
+      - Is Current Customer
+  - name: key_tenant_sf_total
+    expr: |-
+      key_tenant_sf_total
+    display_name: Fct Tam Buildings Key Tenant Sf Total
+    format:
+      type: number
+    synonyms:
+      - Key Tenant Sf Total
+      - Key Tenant Sf
+  - name: largest_tenant_name
+    expr: |-
+      largest_tenant_name
+    display_name: Fct Tam Buildings Largest Tenant Name
+    comment: Largest tenant identified for the building.
+    synonyms:
+      - Largest Tenant Name
+  - name: latitude
+    expr: |-
+      latitude
+    display_name: Fct Tam Buildings Latitude
+    comment: Latitude coordinate for mapping.
+    format:
+      type: number
+  - name: longitude
+    expr: |-
+      longitude
+    display_name: Fct Tam Buildings Longitude
+    comment: Longitude coordinate for mapping.
+    format:
+      type: number
+  - name: naics
+    expr: |-
+      naics
+    display_name: Fct Tam Buildings Naics
+  - name: owner_sf_total
+    expr: |-
+      owner_sf_total
+    display_name: Fct Tam Buildings Owner Sf Total
+    format:
+      type: number
+    synonyms:
+      - Owner Sf Total
+      - Owner Sf
+  - name: parent_cust_sf_estimate
+    expr: |-
+      parent_cust_sf_estimate
+    display_name: Fct Tam Buildings Parent Customer SF Estimate (with No Market Data)
+    format:
+      type: number
+    synonyms:
+      - Parent Cust Sf Estimate
+  - name: property_id
+    expr: |-
+      property_id
+    display_name: Fct Tam Buildings Property ID
+    comment: Primary key for TAM buildings; unique building identifier and the recommended join key for building-grain analysis.
+    synonyms:
+      - Property Id
+  - name: property_manager_sf_total
+    expr: |-
+      property_manager_sf_total
+    display_name: Fct Tam Buildings Property Manager Sf Total
+    format:
+      type: number
+    synonyms:
+      - Property Manager Sf Total
+      - Property Manager Sf
+  - name: state
+    expr: |-
+      state
+    display_name: Fct Tam Buildings State
+    comment: State or province where the building is located.
+  - name: industry
+    expr: |-
+      industry
+    display_name: Fct Tam Buildings Tenant Industry
+  - name: zip
+    expr: |-
+      zip
+    display_name: Fct Tam Buildings Zip
+measures:
+  - name: buildings_count_customer_adjusted
+    expr: |-
+      COUNT(DISTINCT CASE
+        WHEN in_extended_tam_scope_flag_default THEN property_id
+        ELSE NULL
+      END)
+    display_name: Fct Tam Buildings Buildings in TAM
+    comment: Distinct TAM-eligible building count in the extended TAM scope. Use as the denominator for penetration-style TAM KPIs.
+    format:
+      type: percentage
+    synonyms:
+      - Buildings Count Customer Adjusted
+      - Buildings Customer Adjusted
+  - name: revenue_estimate_sum_customer_adjusted
+    expr: |-
+      COALESCE(SUM(CASE
+        WHEN in_extended_tam_scope_flag_default THEN
+          CASE
+            WHEN upper(currency_selector) = 'USD' THEN revenue_estimate_usd
+            ELSE revenue_estimate_cad
+          END
+        ELSE NULL
+      END), 0)
+    display_name: Fct Tam Buildings TAM Revenue Estimate ($)
+    comment: Estimated total revenue opportunity across extended TAM scope. Generally modeled as building SF multiplied by facility-type rate.
+    format:
+      type: percentage
+    synonyms:
+      - Revenue Estimate Sum Customer Adjusted
+      - Revenue Estimate Customer Adjusted
+  - name: building_sf_occupied_by_account_adjusted_sum
+    expr: |-
+      COALESCE(SUM(CASE
+        WHEN in_extended_tam_scope_flag_default
+          THEN COALESCE(building_sf_occupied_by_account, customer_sf_estimate)
+        ELSE NULL
+      END), 0)
+    display_name: Fct Tam Buildings Building SF in TAM
+    comment: Total TAM square footage using occupied SF when available and customer SF estimate fallback for missing market data.
+    format:
+      type: number
+    synonyms:
+      - Building Sf Occupied By Account Adjusted Sum
+      - Building Sf Occupied By Account Adjusted
+  - name: avg_acct_sf_per_building_customer_adjusted
+    expr: |-
+      COALESCE(SUM(CASE
+        WHEN in_extended_tam_scope_flag_default
+          THEN COALESCE(building_sf_occupied_by_account, customer_sf_estimate)
+        ELSE NULL
+      END), 0) * 1.0
+      / NULLIF(COUNT(DISTINCT CASE
+          WHEN in_extended_tam_scope_flag_default THEN property_id
+          ELSE NULL
+        END), 0)
+    display_name: Fct Tam Buildings Average Building Size (Sq Ft)
+    comment: "Average TAM building size in square feet. Formula: Building SF in TAM / Buildings in TAM."
+    format:
+      type: number
+    synonyms:
+      - Avg Acct Sf Per Building Customer Adjusted
+      - Acct Sf Per Building Customer Adjusted
+  - name: max_rate
+    expr: |-
+      PERCENTILE_APPROX(
+        CASE
+          WHEN upper(currency_selector) = 'USD' THEN rate_usd
+          ELSE rate_cad
+        END,
+        0.5
+      )
+    display_name: Fct Tam Buildings Facility Type Estimated Revenue $ / Sq Ft
+    comment: Median facility-type revenue rate per square foot used as a pricing benchmark for TAM revenue estimation.
+    format:
+      type: percentage
+      decimal_places:
+        type: exact
+        places: 2
+    synonyms:
+      - Max Rate
+      - Rate
+  - name: customers_site_count_adjusted
+    expr: |-
+      COUNT(DISTINCT CASE
+        WHEN (customer_match_status <> 'Not a Customer' OR customer_match_status IS NULL)
+         AND in_extended_tam_scope_flag_default
+          THEN cust_unified_building_id
+        ELSE NULL
+      END)
+    display_name: Fct Tam Buildings GDI Customer Sites
+    comment: Distinct count of customer sites included in the extended TAM scope (includes eligible No Market ID logic).
+    format:
+      type: number
+    synonyms:
+      - Customers Site Count Adjusted
+      - Customers Site Adjusted
+  - name: building_penetration_customer_adjusted
+    expr: |-
+      COUNT(DISTINCT CASE
+        WHEN (customer_match_status <> 'Not a Customer' OR customer_match_status IS NULL)
+         AND in_extended_tam_scope_flag_default
+          THEN cust_unified_building_id
+        ELSE NULL
+      END) * 1.0
+      / NULLIF(COUNT(DISTINCT CASE
+          WHEN in_extended_tam_scope_flag_default THEN property_id
+          ELSE NULL
+        END), 0)
+    display_name: Fct Tam Buildings Building Penetration %
+    comment: "Share of TAM buildings currently serviced by GDI. Formula: GDI Customer Sites / Buildings in TAM."
+    format:
+      type: percentage
+      decimal_places:
+        type: exact
+        places: 1
+    synonyms:
+      - Building Penetration Customer Adjusted
+  - name: customer_acv_year_sum_customer_adjusted
+    expr: |-
+      COALESCE(SUM(CASE
+        WHEN in_extended_tam_scope_flag_default THEN
+          CASE
+            WHEN upper(currency_selector) = 'USD' THEN customer_acv_year_usd
+            ELSE customer_acv_year
+          END
+        ELSE NULL
+      END), 0)
+    display_name: Fct Tam Buildings GDI Annualized Revenue ($)
+    comment: Total annualized customer contract value within extended TAM scope. This is actual customer revenue, not estimated TAM potential.
+    format:
+      type: currency
+      currency_code: USD
+      decimal_places:
+        type: exact
+        places: 2
+      hide_group_separator: false
+    synonyms:
+      - Customer Acv Year Sum Customer Adjusted
+      - Customer Acv Year Customer Adjusted
+  - name: revenue_share_customer_adjusted
+    expr: |-
+      COALESCE(SUM(CASE
+        WHEN in_extended_tam_scope_flag_default THEN
+          CASE
+            WHEN upper(currency_selector) = 'USD' THEN customer_acv_year_usd
+            ELSE customer_acv_year
+          END
+        ELSE NULL
+      END), 0) * 1.0
+      / NULLIF(COALESCE(SUM(CASE
+          WHEN in_extended_tam_scope_flag_default THEN
+            CASE
+              WHEN upper(currency_selector) = 'USD' THEN revenue_estimate_usd
+              ELSE revenue_estimate_cad
+            END
+          ELSE NULL
+        END), 0), 0)
+    display_name: Fct Tam Buildings Revenue Share %
+    comment: "GDI revenue share within TAM. Formula: GDI Annualized Revenue / TAM Revenue Estimate."
+    format:
+      type: percentage
+      decimal_places:
+        type: exact
+        places: 1
+    synonyms:
+      - Revenue Share Customer Adjusted
+  - name: customer_gross_profit_sum_customer_adjusted
+    expr: |-
+      COALESCE(SUM(CASE
+        WHEN in_extended_tam_scope_flag_default THEN
+          CASE
+            WHEN upper(currency_selector) = 'USD' THEN customer_gross_profit_usd
+            ELSE customer_gross_profit_cad
+          END
+        ELSE NULL
+      END), 0)
+    display_name: Fct Tam Buildings Customer Gross Profit
+    comment: Total gross profit from customer contracts across the extended TAM scope.
+    format:
+      type: currency
+      currency_code: USD
+      decimal_places:
+        type: exact
+        places: 2
+      hide_group_separator: false
+    synonyms:
+      - Customer Gross Profit Sum Customer Adjusted
+      - Customer Gross Profit Customer Adjusted
+  - name: customer_gross_margin_customer_adjusted
+    expr: |-
+      COALESCE(SUM(CASE
+        WHEN in_extended_tam_scope_flag_default THEN
+          CASE
+            WHEN upper(currency_selector) = 'USD' THEN customer_gross_profit_usd
+            ELSE customer_gross_profit_cad
+          END
+        ELSE NULL
+      END), 0) * 1.0
+      / NULLIF(COALESCE(SUM(CASE
+          WHEN in_extended_tam_scope_flag_default THEN
+            CASE
+              WHEN upper(currency_selector) = 'USD' THEN customer_revenue_usd
+              ELSE customer_revenue_cad
+            END
+          ELSE NULL
+        END), 0), 0)
+    display_name: Fct Tam Buildings Customer Gross Margin
+    comment: "Gross margin percentage for customer business in scope. Formula: Customer Gross Profit / Customer Revenue."
+    format:
+      type: percentage
+      decimal_places:
+        type: exact
+        places: 1
+    synonyms:
+      - Customer Gross Margin Customer Adjusted
+  - name: customer_acv_year_sum_outside_tam
+    expr: |-
+      COALESCE(SUM(CASE
+        WHEN NOT COALESCE(in_extended_tam_scope_flag_default, FALSE) THEN
+          CASE
+            WHEN upper(currency_selector) = 'USD' THEN customer_acv_year_usd
+            ELSE customer_acv_year
+          END
+        ELSE NULL
+      END), 0)
+    display_name: Fct Tam Buildings Customer Annual Contract Value Outside TAM
+    format:
+      type: currency
+      currency_code: USD
+      decimal_places:
+        type: exact
+        places: 2
+      hide_group_separator: false
+    synonyms:
+      - Customer Acv Year Sum Outside Tam
+      - Customer Acv Year Outside Tam
+  - name: customers_site_count_outside_tam
+    expr: |-
+      COUNT(DISTINCT CASE
+        WHEN NOT COALESCE(in_extended_tam_scope_flag_default, FALSE)
+          THEN cust_unified_building_id
+        ELSE NULL
+      END)
+    display_name: Fct Tam Buildings Customer Sites Outside TAM Count
+    format:
+      type: number
+    synonyms:
+      - Customers Site Count Outside Tam
+      - Customers Site Outside Tam
+  - name: building_penetration
+    expr: |-
+      COUNT(DISTINCT CASE
+        WHEN (customer_match_status <> 'Not a Customer' OR customer_match_status IS NULL)
+         AND in_extended_tam_scope_flag_default
+          THEN cust_unified_building_id
+        ELSE NULL
+      END) * 1.0
+      / NULLIF(COUNT(DISTINCT CASE
+          WHEN in_extended_tam_scope_flag_default THEN property_id
+          ELSE NULL
+        END), 0)
+    display_name: Building Penetration
+  - name: buildings_count
+    expr: |-
+      COUNT(DISTINCT CASE
+        WHEN in_extended_tam_scope_flag_default THEN property_id
+        ELSE NULL
+      END)
+    display_name: Buildings Count
+    synonyms:
+      - Buildings
+  - name: buildings_count_coverage_adjusted
+    expr: |-
+      COUNT(DISTINCT CASE
+        WHEN in_extended_tam_scope_flag_default THEN property_id
+        ELSE NULL
+      END)
+    display_name: Buildings Count Coverage Adjusted
+    synonyms:
+      - Buildings Coverage Adjusted
+  - name: customers_site_count
+    expr: |-
+      COUNT(DISTINCT CASE
+        WHEN (customer_match_status <> 'Not a Customer' OR customer_match_status IS NULL)
+         AND in_extended_tam_scope_flag_default
+          THEN cust_unified_building_id
+        ELSE NULL
+      END)
+    display_name: Customers Site Count
+    synonyms:
+      - Customers Site
+  - name: acv_match_out_of_tam_building_size
+    expr: |-
+      COALESCE(SUM(CASE
+        WHEN customer_match_status = 'Matched: Excluded < 100k Sq Ft'
+          THEN customer_acv_year / 1000000.0
+        ELSE NULL
+      END), 0)
+    display_name: "Fct Tam Buildings ACV Matched: Excluded < 100k Sq Ft"
+    format:
+      type: currency
+      currency_code: USD
+      decimal_places:
+        type: exact
+        places: 2
+      hide_group_separator: false
+    synonyms:
+      - Acv Match Out Of Tam Building Size
+  - name: acv_match_out_of_tam_less_than_20k
+    expr: |-
+      COALESCE(SUM(CASE
+        WHEN customer_match_status = 'Matched: Excluded < 20k Sq Ft'
+          THEN customer_acv_year / 1000000.0
+        ELSE NULL
+      END), 0)
+    display_name: "Fct Tam Buildings ACV Matched: Excluded < 20k Sq Ft"
+    format:
+      type: currency
+      currency_code: USD
+      decimal_places:
+        type: exact
+        places: 2
+      hide_group_separator: false
+    synonyms:
+      - Acv Match Out Of Tam Less Than 20k
+parameters:
+  - name: currency_selector
+    data_type: STRING
+    default: "'CAD'"
+  - name: square_footage_threshold
+    data_type: BIGINT
+    default: 100000
+comment: Migrated Looker explore gdi.tam_buildings

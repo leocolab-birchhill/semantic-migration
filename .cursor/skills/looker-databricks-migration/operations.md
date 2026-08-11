@@ -1,5 +1,13 @@
 # Operations Reference
 
+## Preflight (every session)
+
+1. State requirements (credentials → target schemas → Databricks grants).
+2. `npm run cli:doctor` until all PASS; request missing creds into `.envs`
+   (never into chat).
+3. Human confirms catalog + `devSchema` + `prodSchema` (exist vs create).
+4. Then discover / create-job. See [setup-auth.md](setup-auth.md).
+
 ## CLI commands
 
 | Command | Purpose |

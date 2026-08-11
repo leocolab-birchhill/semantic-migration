@@ -359,6 +359,18 @@ async function main() {
       continue;
     }
 
+    const parameters: Record<string, string> = {};
+    const inventoryForTile = inventories.get(compiled.metricViewName?.toLowerCase() ?? "");
+    if (inventoryForTile?.parameters && compiled.filters) {
+      for (const param of inventoryForTile.parameters) {
+        const lookerFilterVal = compiled.filters[param.name];
+        if (lookerFilterVal) {
+          parameters[param.name] = lookerFilterVal;
+          delete compiled.filters[param.name];
+        }
+      }
+    }
+
     const dbSql = buildMetricViewSelect({
       catalog: job.catalog,
       schema: job.dev_schema,
@@ -368,6 +380,7 @@ async function main() {
       limit: tile.limit ?? 500,
       filters: compiled.filters,
       sorts: compiled.sorts,
+      parameters: Object.keys(parameters).length > 0 ? parameters : undefined,
     });
 
     const dbResult = await executeStatement(job.warehouse_id, dbSql, "50s");

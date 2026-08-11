@@ -28,6 +28,8 @@ export interface MetricViewQueryInput {
    */
   predicates?: string[];
   sorts?: string[];
+  /** Metric view parameters to pass to the table-valued function. */
+  parameters?: Record<string, string>;
 }
 
 export interface ParsedLookerFilterExpression {
@@ -272,6 +274,10 @@ export function buildMetricViewSelect(input: MetricViewQueryInput): string {
   }
 
   const from = `\`${esc(input.catalog)}\`.\`${esc(input.schema)}\`.\`${esc(input.viewName)}\``;
+  const params = input.parameters && Object.keys(input.parameters).length > 0
+    ? `(${Object.entries(input.parameters).map(([k, v]) => `${k} => ${sqlLiteral(v)}`).join(", ")})`
+    : "";
+  const fromWithParams = `${from}${params}`;
 
   const wherePartsSet = new Set<string>();
   const whereParts: string[] = [];
@@ -296,12 +302,24 @@ export function buildMetricViewSelect(input: MetricViewQueryInput): string {
     whereParts.length > 0 ? `\nWHERE ${whereParts.join(" AND ")}` : "";
 
   const orderParts: string[] = [];
+  const selectedBare = new Set(
+    input.fields.map((f) => canonicalizeFieldName(stripLookerFieldPrefix(f)))
+  );
   if (input.sorts) {
     for (const sort of input.sorts) {
       const desc = sort.trim().toLowerCase().endsWith(" desc");
       const field = sort.replace(/\s+desc$/i, "").replace(/\s+asc$/i, "").trim();
       const bare = stripLookerFieldPrefix(field);
-      orderParts.push(`\`${esc(bare)}\`${desc ? " DESC" : ""}`);
+      const bareKey = canonicalizeFieldName(bare);
+      const isMeasure = input.measureNames.has(canonicalizeFieldName(field));
+      // Prefer the SELECT alias when the measure is already projected —
+      // MEASURE(alias) is invalid. Use MEASURE() only for sort keys omitted
+      // from SELECT (common when Looker sorts by an out-of-inventory measure).
+      const orderExpr =
+        isMeasure && !selectedBare.has(bareKey)
+          ? `MEASURE(\`${esc(bare)}\`)`
+          : `\`${esc(bare)}\``;
+      orderParts.push(`${orderExpr}${desc ? " DESC" : ""}`);
     }
   }
   // Stable default when the Looker tile has no sorts — avoids arbitrary LIMIT samples.
@@ -320,7 +338,7 @@ export function buildMetricViewSelect(input: MetricViewQueryInput): string {
   // so GROUP BY ALL is required even without measures for row parity.
   const groupBy =
     hasMeasures || input.fields.length > 0 ? "\nGROUP BY ALL" : "";
-  return `SELECT ${selectParts.join(", ")} FROM ${from}${where}${groupBy}${orderBy}\nLIMIT ${limit}`;
+  return `SELECT ${selectParts.join(", ")} FROM ${fromWithParams}${where}${groupBy}${orderBy}\nLIMIT ${limit}`;
 }
 
 /** Build column type map from inventory field metadata. */

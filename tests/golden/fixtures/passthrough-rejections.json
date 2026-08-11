@@ -1,6 +1,6 @@
 {
   "kind": "scaffold",
-  "description": "Non-trivial dimensions must NOT scaffold: CASE logic, Looker parameters, hidden fields, arithmetic, and :: casts all stay on the LLM side of the boundary.",
+  "description": "Non-trivial dimensions must NOT scaffold: CASE logic, Looker parameters (which become Databricks YAML parameters), hidden fields, arithmetic, and :: casts all stay on the LLM side of the boundary.",
   "metricViewName": "building_monthly_financials",
   "dimensions": [
     {

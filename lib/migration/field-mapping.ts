@@ -168,6 +168,21 @@ export function parseMetricViewInventory(
     }
   }
 
+  const paramNodes = doc.parameters as Array<Record<string, unknown>> | undefined;
+  const parameters: MetricViewInventory["parameters"] = [];
+  if (Array.isArray(paramNodes)) {
+    for (const p of paramNodes) {
+      const name = String(p.name ?? "");
+      const data_type = String(p.data_type ?? "string");
+      if (!name) continue;
+      parameters.push({
+        name,
+        data_type,
+        default: p.default,
+      });
+    }
+  }
+
   const measureNodes = doc.measures as Array<Record<string, unknown>> | undefined;
   if (Array.isArray(measureNodes)) {
     for (const m of measureNodes) {
@@ -183,6 +198,7 @@ export function parseMetricViewInventory(
   return {
     name: metricViewName,
     source: typeof doc.source === "string" ? doc.source : undefined,
+    parameters: parameters.length > 0 ? parameters : undefined,
     dimensions,
     measures,
   };
@@ -927,6 +943,14 @@ export function compileBenchmarkFromMapping(params: {
         continue;
       }
       sorts.push(`${entry.databricksField}${desc ? " desc" : ""}`);
+      // Sort keys may be measures omitted from SELECT (out-of-inventory Looker
+      // fields). Still mark them so ORDER BY can wrap MEASURE().
+      if (
+        entry.kind === "measure" ||
+        measureNamesInv.has(canonicalizeFieldName(entry.databricksField))
+      ) {
+        measureNames.add(canonicalizeFieldName(entry.databricksField));
+      }
     }
   }
 

@@ -424,6 +424,20 @@ export async function runParityTests(params: {
           preferredMetricView: tc.metricViewName,
         });
 
+        // Extract Databricks parameters from Looker filter_expression if they map to Databricks parameters
+        const parameters: Record<string, string> = {};
+        const inventory = inventories.get(compiled.metricViewName?.toLowerCase() ?? "");
+        if (inventory?.parameters && extracted.filters) {
+          for (const param of inventory.parameters) {
+            const lookerFilterVal = extracted.filters[param.name];
+            if (lookerFilterVal) {
+              parameters[param.name] = lookerFilterVal;
+              // Remove it from WHERE filters so it doesn't get applied twice
+              delete extracted.filters[param.name];
+            }
+          }
+        }
+
         if (!compiled.ok) {
           const summary = `query_compilation_error: ${formatCompilationError(compiled.issues)}`;
           const unresolved = compiled.issues
@@ -490,6 +504,7 @@ export async function runParityTests(params: {
           filters: compiled.filters,
           predicates: compiled.predicates,
           sorts: compiled.sorts,
+          parameters: Object.keys(parameters).length > 0 ? parameters : undefined,
         });
 
         const dbResult = await executeStatement(job.warehouseId, dbSql);
