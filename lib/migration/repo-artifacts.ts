@@ -20,6 +20,7 @@ export interface ParityHarnessConfig {
   devSchema: string;
   warehouseId: string;
   databricksHost: string;
+  prodSchema?: string;
   decimalScale: number;
   timezone: string;
   jobId?: string;
@@ -71,6 +72,7 @@ export interface WriteMigrationArtifactsInput {
   databricksHost: string;
   decimalScale?: number;
   timezone?: string;
+  prodSchema?: string;
   jobId?: string;
   scope?: ConfirmedMigrationScope | null;
   inventory: IntermediateRepresentation;
@@ -91,7 +93,16 @@ export function writeMigrationArtifacts(
   ensureDir(path.join(root, "edge-cases"));
 
   if (input.scope) {
-    writeJson(path.join(root, "scope.json"), input.scope);
+    writeJson(path.join(root, "scope.json"), {
+      ...input.scope,
+      databricks: {
+        host: input.databricksHost,
+        warehouseId: input.warehouseId,
+        catalog: input.catalog,
+        devSchema: input.devSchema,
+        prodSchema: input.prodSchema ?? "business_semantics",
+      },
+    });
   }
 
   writeJson(path.join(root, "inventory.json"), input.inventory);
@@ -144,6 +155,7 @@ export function writeMigrationArtifacts(
     databricksHost: input.databricksHost,
     decimalScale: input.decimalScale ?? 2,
     timezone: input.timezone ?? "UTC",
+    prodSchema: input.prodSchema ?? "business_semantics",
     jobId: input.jobId,
     metricViewName: primaryMv,
     tiles: (input.inventory.benchmarks ?? []).map((b) => ({

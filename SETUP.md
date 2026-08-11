@@ -1,58 +1,49 @@
-# Team setup (no public secrets)
+# Team setup (skill CLI — no public secrets)
 
-This repo is safe to clone publicly: **credentials are never in git**.
+This repo is safe to clone: **credentials are never in git**. There is no web
+app and no job database to configure.
 
 ## What is shared in the repo
 
-- The Cursor skill: `.cursor/skills/looker-databricks-migration/`
-- Migration pipeline code (`lib/`, `scripts/`, `app/`, `tests/`)
-- Planning docs (`skill-plan.md`, `handoff.md`, `cases/`)
-- Env **template** only: `.envs.example` (placeholder values, no secrets)
+- Cursor skill: `.cursor/skills/looker-databricks-migration/`
+- CLI + libraries (`lib/`, `scripts/cli/`, `tests/`)
+- Edge-case library: `cases/` (promote lessons here via PR)
+- Env **template** only: `.envs.example`
 
-## What stays private (each developer)
+## What each developer does
 
-1. Copy the template:
+1. `npm install`
+2. Install the [Databricks CLI](https://docs.databricks.com/dev-tools/cli/install.html)
+3. Copy env template and fill values:
 
 ```bash
 cp .envs.example .envs
 ```
 
-2. Fill secrets from the **team vault** (1Password / Bitwarden / Azure Key Vault — not Slack, not the repo):
+| Variable | Source |
+|----------|--------|
+| `LOOKER_HOST` / `LOOKER_CLIENT_ID` / `LOOKER_CLIENT_SECRET` | Shared team vault |
+| `OPENAI_API_KEY` | Shared team vault |
+| `DATABRICKS_HOST` + `DATABRICKS_CLI_PROFILE` | **Your** workspace (per-dev) |
 
-| Variable | Who provides it |
-|----------|-----------------|
-| `LOOKER_*` | Shared Looker API service account (team vault) |
-| `OPENAI_API_KEY` | Shared team key (team vault) |
-| `DATABASE_URL` or Lakebase `PG*` | Shared/local DB (team vault or `npm run db:up`) |
-| `DATABRICKS_HOST` + `DATABRICKS_CLI_PROFILE` | **Your** workspace — per developer |
-
-3. Authenticate Databricks locally (browser login; token stays on your machine):
+4. Browser login (tokens stay on your machine):
 
 ```bash
 npm run auth:databricks
 ```
 
-4. Verify:
+5. Preflight:
 
 ```bash
 npm run cli:doctor
 ```
 
-`.envs` is gitignored. Never commit it. Never paste secrets into issues/PRs.
+6. In Cursor Agent chat: `/looker-databricks-migration`
 
-## Why this works with a public (or org) repo
+Never commit `.envs`. Never paste secrets into chat/issues/PRs.
 
-- GitHub only has code + empty placeholders
-- Cursor discovers the skill from `.cursor/skills/` after clone
-- Each user brings their own Databricks CLI session
-- Shared Looker/OpenAI keys live in a secrets manager, not the repository
+## Team learning (`cases/`)
 
-## Optional: org-only distribution
-
-If you prefer secrets never leave your org at all:
-
-- Keep the GitHub repo **private** under Birch Hill
-- Or use a private package / internal mirror for the skill folder only
-- CI (if any) should use [GitHub Actions secrets](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions), not committed files
-
-There is no safe way to put real API keys in a public repo and still “just clone and run.” The template + vault + CLI login pattern is the standard approach.
+After a successful local fix, the skill writes notes under
+`migrations/<table>/edge-cases/` and (when reusable) `cases/`. Those files are
+**not** auto-pushed — commit and open a PR so teammates get them on `git pull`.

@@ -1,13 +1,9 @@
 # migrations/
 
-Per-table OpenAI draft + local Cursor fix artifacts.
-
-Created automatically by the worker (after generate) or by:
+Per-table OpenAI draft + local Cursor fix artifacts (filesystem-only).
 
 ```bash
 npm run cli:draft -- --scope tmp-debug/scope-draft.json
-# or
-npm run cli:draft -- --job <jobId>
 ```
 
 Layout:
@@ -16,7 +12,7 @@ Layout:
 migrations/<catalog.schema.table>/
   README.md
   scope.json
-  inventory.json
+  inventory.json       # gitignored
   draft/
     sql_view.sql
     metric_view.yaml
@@ -24,9 +20,8 @@ migrations/<catalog.schema.table>/
     assets.json
   harness/
     parity.config.json
-    parity.ts          # pointer to npm run cli:parity
-    last-run.json      # written by cli:parity
-  edge-cases/          # Cursor must append notes after each fix
+    last-run.json      # gitignored; written by cli:parity
+  edge-cases/          # append notes after each fix; promote reusable to cases/
 ```
 
 Do not commit secrets. Inventory may contain Looker SQL — review before

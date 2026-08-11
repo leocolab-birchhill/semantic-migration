@@ -6,8 +6,8 @@ LLM output is never trusted — proven against captured Looker benchmarks.
 
 1. **Immutable Looker benchmarks** (`json_bi`) captured before generate
 2. **Deterministic comparator** (`lib/migration/comparator.ts`)
-3. **`cli:parity` / worker test** — every mandatory tile must pass
-4. **Human approve/publish** — `cli:approve --confirm`
+3. **`cli:parity`** — every mandatory tile must pass (`harness/last-run.json`)
+4. **Human publish** — `cli:publish --confirm` (requires green parity unless `--force`)
 
 ## Two regimes
 
@@ -18,6 +18,6 @@ LLM output is never trusted — proven against captured Looker benchmarks.
 
 ## Local fix does not weaken gates
 
-Cursor may edit `draft/` freely, but approval still requires mandatory
+Cursor may edit `draft/` freely, but publish still requires mandatory
 benchmarks green. After each fix, add an edge-case note and, for engine bugs,
-a golden/unit test.
+a golden/unit test. Commit/PR `cases/` updates for team learning.

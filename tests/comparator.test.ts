@@ -13,8 +13,6 @@ import {
 } from "../lib/migration/query-builder";
 import { buildTestCases } from "../lib/migration/test-cases";
 import type { IntermediateRepresentation } from "../lib/migration/types";
-import { jobToCreateInput } from "../lib/migration/jobs";
-import type { MigrationJobRecord } from "../lib/migration/types";
 
 describe("compareRowSets", () => {
   it("matches identical integer rows", () => {
@@ -556,46 +554,5 @@ describe("buildTestCases", () => {
     assert.strictEqual(pivoted?.type, "pivot");
     assert.ok(pivoted?.name.includes("pivot dims as columns"));
     assert.ok(!(pivoted?.lookerQuery as { pivots?: string[] }).pivots);
-  });
-});
-
-describe("jobToCreateInput", () => {
-  it("maps a job record into create input for rerun", () => {
-    const job = {
-      id: "1",
-      tenantId: "default",
-      userEmail: "a@b.c",
-      status: "failed",
-      lookerSourceType: "explore",
-      lookerModel: "model",
-      lookerExplore: "explore",
-      lookerDashboardId: null,
-      lookerDashboardTitle: null,
-      databricksHost: "https://x",
-      warehouseId: "w",
-      catalog: "c",
-      sourceSchema: "s",
-      sourceTable: "t",
-      devSchema: "dev",
-      prodSchema: "prod",
-      maxIterations: 5,
-      decimalScale: 2,
-      timezone: "UTC",
-      currentPhase: "compare",
-      iterationCount: 1,
-      inventory: null,
-      parityReport: null,
-      migrationScope: null,
-      errorMessage: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      approvedAt: null,
-      publishedAt: null,
-    } as MigrationJobRecord;
-
-    const input = jobToCreateInput(job, "idem-1");
-    assert.strictEqual(input.lookerModel, "model");
-    assert.strictEqual(input.devSchema, "dev");
-    assert.strictEqual(input.idempotencyKey, "idem-1");
   });
 });

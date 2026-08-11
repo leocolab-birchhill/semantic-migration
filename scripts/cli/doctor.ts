@@ -43,34 +43,6 @@ async function checkEnvFiles() {
   );
 }
 
-async function checkDatabase() {
-  const { isDatabaseConfigured, query } = await import("../../lib/db/client");
-  if (!isDatabaseConfigured()) {
-    record(
-      "database",
-      false,
-      "neither DATABASE_URL nor Lakebase PG* variables are set",
-      "Set DATABASE_URL in .envs (local: npm run db:up), or configure Lakebase vars"
-    );
-    return;
-  }
-  try {
-    await query("SELECT 1");
-    record("database", true, "connected and responding");
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    const isAuth = /token|auth|password|401|unauthorized/i.test(message);
-    record(
-      "database",
-      false,
-      message.slice(0, 200),
-      isAuth
-        ? "Lakebase token likely expired — run: npm run auth:databricks"
-        : "Check DATABASE_URL / PG* values; local Postgres: npm run db:up && npm run db:migrate"
-    );
-  }
-}
-
 async function checkLooker() {
   const { getLookerConfig } = await import("../../lib/config/looker");
   const config = getLookerConfig();
@@ -189,9 +161,8 @@ async function checkDatabricksAuth() {
 }
 
 async function main() {
-  console.log("=== Migration pipeline preflight ===\n");
+  console.log("=== Migration skill preflight (no job DB) ===\n");
   await checkEnvFiles();
-  await checkDatabase();
   await checkLooker();
   await checkOpenAi();
   await checkDatabricksAuth();

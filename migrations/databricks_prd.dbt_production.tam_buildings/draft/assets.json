@@ -1,0 +1,2262 @@
+[
+  {
+    "description": "Building-grain staging view for the TAM semantic layer. No Looker joins are present. It preserves source columns and materializes reusable threshold and currency inputs without changing grain.",
+    "fieldMappings": [],
+    "grain": "One row per source TAM building record; property_id and cust_unified_building_id support building and customer-site distinct counts.",
+    "name": "tam_buildings_staging",
+    "schema": "semantic_migration_dev",
+    "sql": "SELECT\n  b.*,\n  CASE\n    WHEN lower(coalesce(trim(b.account), '')) IN ('', 'n/a', '0')\n     AND lower(coalesce(trim(b.property_manager_name), '')) IN ('', 'n/a', '0')\n     AND lower(coalesce(trim(b.owner_name), '')) IN ('', 'n/a', '0')\n     AND lower(coalesce(trim(b.key_tenant_name), '')) IN ('', 'n/a', '0')\n      THEN coalesce(b.building_rba, 0)\n    ELSE greatest(\n      coalesce(b.account_sf_total, 0),\n      coalesce(b.property_manager_sf_total, 0),\n      coalesce(b.owner_sf_total, 0),\n      coalesce(b.key_tenant_sf_total, 0)\n    )\n  END AS _mv_sf_threshold_basis,\n  b.customer_acv_year AS _mv_customer_acv_year_cad,\n  b.customer_acv_year_usd AS _mv_customer_acv_year_usd,\n  b.revenue_estimate_cad AS _mv_revenue_estimate_cad,\n  b.revenue_estimate_usd AS _mv_revenue_estimate_usd,\n  b.customer_gross_profit_cad AS _mv_customer_gross_profit_cad,\n  b.customer_gross_profit_usd AS _mv_customer_gross_profit_usd,\n  b.customer_revenue_cad AS _mv_customer_revenue_cad,\n  b.customer_revenue_usd AS _mv_customer_revenue_usd,\n  b.rate_cad AS _mv_rate_cad,\n  b.rate_usd AS _mv_rate_usd\nFROM databricks_prd.dbt_production.fct_tam_buildings b\nWHERE\n  (\n    lower(b.property_manager_name) LIKE '%'\n    OR lower(b.key_tenant_name) LIKE '%'\n    OR lower(b.owner_name) LIKE '%'\n    OR lower(b.cust_parent_customer) LIKE '%'\n  )\n  AND b.property_id <> '10630US'\n  AND coalesce(b.sector, '') <> 'Residential'\n  AND b.outside_geographic_tam = 'F'\n  AND (b.building_rba IS NULL OR b.building_rba >= 20000)",
+    "type": "sql_view"
+  },
+  {
+    "description": "Primary TAM metric view. It implements the Looker square-footage and currency parameters, non-passthrough dimensions, all inventoried measures, benchmark compatibility fields, and durable dashboard custom metrics.",
+    "fieldMappings": [
+      {
+        "lookerField": "fct_tam_buildings.consolidated_sector_2",
+        "metricViewName": "tam_buildings",
+        "databricksField": "consolidated_sector_2",
+        "kind": "dimension",
+        "populationGrain": "Building row",
+        "evidence": {
+          "aggregation": "None",
+          "filters": [],
+          "populationGrain": "Building row",
+          "lookmlSql": "CASE WHEN TRIM(consolidated_sector_2) = '' THEN NULL ELSE consolidated_sector_2 END",
+          "databricksExpr": "NULLIF(TRIM(consolidated_sector_2), '')",
+          "rationale": "Direct implementation of the Looker facility segmentation cleanup."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.consolidated_sector_2_sort",
+        "metricViewName": "tam_buildings",
+        "databricksField": "consolidated_sector_2_sort",
+        "kind": "dimension",
+        "unit": "number",
+        "populationGrain": "Building row",
+        "evidence": {
+          "aggregation": "None",
+          "filters": [],
+          "unit": "number",
+          "populationGrain": "Building row",
+          "lookmlSql": "CASE consolidated_sector_2 ... END",
+          "databricksExpr": "CASE ordering over consolidated_sector_2",
+          "rationale": "Preserves Looker consolidated facility-type ordering."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.customer_bridge_bucket",
+        "metricViewName": "tam_buildings",
+        "databricksField": "customer_bridge_bucket",
+        "kind": "dimension",
+        "populationGrain": "Building/customer-site row",
+        "evidence": {
+          "aggregation": "None",
+          "filters": [],
+          "populationGrain": "Building/customer-site row",
+          "lookmlSql": "Looker customer_bridge_bucket CASE",
+          "databricksExpr": "Parameterized CASE over customer status, threshold basis, and parent SF",
+          "rationale": "Preserves the MECE active-customer bridge and square-footage parameter."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.geo_label_for_map",
+        "metricViewName": "tam_buildings",
+        "databricksField": "geo_label_for_map",
+        "kind": "dimension",
+        "populationGrain": "Building row",
+        "evidence": {
+          "aggregation": "None",
+          "filters": [],
+          "populationGrain": "Building row",
+          "lookmlSql": "territory_label; compiled SQL resolves to territory",
+          "databricksExpr": "territory",
+          "rationale": "Uses the compiled map geography label evidenced by s20."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.in_extended_tam_scope_flag",
+        "metricViewName": "tam_buildings",
+        "databricksField": "in_extended_tam_scope_flag",
+        "kind": "dimension",
+        "unit": "boolean",
+        "populationGrain": "Building/customer-site row",
+        "evidence": {
+          "aggregation": "None",
+          "filters": [],
+          "unit": "boolean",
+          "populationGrain": "Building/customer-site row",
+          "lookmlSql": "Looker in_extended_tam_scope_flag CASE",
+          "databricksExpr": "Parameterized eligibility CASE",
+          "rationale": "Implements extended TAM eligibility at the selected minimum account SF."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.market_passes_sf_threshold",
+        "metricViewName": "tam_buildings",
+        "databricksField": "market_passes_sf_threshold",
+        "kind": "dimension",
+        "unit": "boolean",
+        "populationGrain": "Building row",
+        "evidence": {
+          "aggregation": "None",
+          "filters": [],
+          "unit": "boolean",
+          "populationGrain": "Building row",
+          "lookmlSql": "Looker market_passes_sf_threshold",
+          "databricksExpr": "building_rba >= 20000 AND threshold basis >= parameter",
+          "rationale": "Preserves the building floor and account/decision-maker threshold logic."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.naics_code",
+        "metricViewName": "tam_buildings",
+        "databricksField": "naics_code",
+        "kind": "dimension",
+        "populationGrain": "Building row",
+        "evidence": {
+          "aggregation": "None",
+          "filters": [],
+          "populationGrain": "Building row",
+          "lookmlSql": "RIGHT(naics, 6)",
+          "databricksExpr": "RIGHT(naics, 6)",
+          "rationale": "Exact Looker NAICS suffix transformation."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.revenue_estimate_selected",
+        "metricViewName": "tam_buildings",
+        "databricksField": "revenue_estimate_selected",
+        "kind": "dimension",
+        "currency": "CAD",
+        "unit": "currency",
+        "populationGrain": "Building row",
+        "evidence": {
+          "aggregation": "None",
+          "filters": [],
+          "currency": "CAD",
+          "unit": "currency",
+          "populationGrain": "Building row",
+          "lookmlSql": "Looker currency parameter CASE",
+          "databricksExpr": "CASE currency WHEN usd THEN USD ELSE CAD END",
+          "rationale": "Selects the physical CAD or USD revenue estimate without treating the selected stem as a source column."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.sector_sort",
+        "metricViewName": "tam_buildings",
+        "databricksField": "sector_sort",
+        "kind": "dimension",
+        "unit": "number",
+        "populationGrain": "Building row",
+        "evidence": {
+          "aggregation": "None",
+          "filters": [],
+          "unit": "number",
+          "populationGrain": "Building row",
+          "lookmlSql": "Looker sector_sort CASE",
+          "databricksExpr": "CASE ordering over sector",
+          "rationale": "Preserves dashboard facility-type ordering."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.territory",
+        "metricViewName": "tam_buildings",
+        "databricksField": "territory",
+        "kind": "dimension",
+        "populationGrain": "Building row",
+        "evidence": {
+          "aggregation": "None",
+          "filters": [],
+          "populationGrain": "Building row",
+          "lookmlSql": "CASE WHEN territory IS NOT NULL THEN territory END",
+          "databricksExpr": "territory",
+          "rationale": "Equivalent nullable territory dimension."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.acv_match_out_of_tam_building_size",
+        "metricViewName": "tam_buildings",
+        "databricksField": "acv_match_out_of_tam_building_size",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Building/customer-site rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "customer_match_status = Matched: Excluded < 100k Sq Ft"
+          ],
+          "currency": "CAD",
+          "unit": "millions",
+          "populationGrain": "Building/customer-site rows",
+          "lookmlSql": "sum(customer_acv_year / 1000000)",
+          "databricksExpr": "SUM(CAD ACV / 1MM) filtered to excluded <100k",
+          "rationale": "Exact filtered Looker ACV subtotal; output is CAD millions."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.acv_match_out_of_tam_less_than_20k",
+        "metricViewName": "tam_buildings",
+        "databricksField": "acv_match_out_of_tam_less_than_20k",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Building/customer-site rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "customer_match_status = Matched: Excluded < 20k Sq Ft"
+          ],
+          "currency": "CAD",
+          "unit": "millions",
+          "populationGrain": "Building/customer-site rows",
+          "lookmlSql": "sum(customer_acv_year / 1000000)",
+          "databricksExpr": "SUM(CAD ACV / 1MM) filtered to excluded <20k",
+          "rationale": "Exact filtered Looker ACV subtotal."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.acv_match_out_of_tam_not_built",
+        "metricViewName": "tam_buildings",
+        "databricksField": "acv_match_out_of_tam_not_built",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Building/customer-site rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "customer_match_status = Matched: Excluded by Building Not Built"
+          ],
+          "currency": "CAD",
+          "unit": "millions",
+          "populationGrain": "Building/customer-site rows",
+          "lookmlSql": "sum(customer_acv_year / 1000000)",
+          "databricksExpr": "SUM(CAD ACV / 1MM) filtered to not built",
+          "rationale": "Exact filtered Looker ACV subtotal."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.acv_match_out_of_tam_property_type",
+        "metricViewName": "tam_buildings",
+        "databricksField": "acv_match_out_of_tam_property_type",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Building/customer-site rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "customer_match_status = Matched: Excluded by Property Type"
+          ],
+          "currency": "CAD",
+          "unit": "millions",
+          "populationGrain": "Building/customer-site rows",
+          "lookmlSql": "sum(customer_acv_year / 1000000)",
+          "databricksExpr": "SUM(CAD ACV / 1MM) filtered to excluded property type",
+          "rationale": "Exact filtered Looker ACV subtotal."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.acv_match_out_of_tam",
+        "metricViewName": "tam_buildings",
+        "databricksField": "acv_match_out_of_tam",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Building/customer-site rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "customer_match_status in four matched exclusion statuses"
+          ],
+          "currency": "CAD",
+          "unit": "millions",
+          "populationGrain": "Building/customer-site rows",
+          "lookmlSql": "sum(customer_acv_year / 1000000)",
+          "databricksExpr": "SUM(CAD ACV / 1MM) over four exclusion statuses",
+          "rationale": "Filtered ACV total for matched customers excluded from TAM."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.acv_match_in_tam",
+        "metricViewName": "tam_buildings",
+        "databricksField": "acv_match_in_tam",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Building/customer-site rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "customer_match_status = Matched: In TAM"
+          ],
+          "currency": "CAD",
+          "unit": "millions",
+          "populationGrain": "Building/customer-site rows",
+          "lookmlSql": "sum(customer_acv_year / 1000000)",
+          "databricksExpr": "SUM(CAD ACV / 1MM) for Matched: In TAM",
+          "rationale": "Exact filtered Looker ACV measure."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.acv_match_in_tam_plus_no_data",
+        "metricViewName": "tam_buildings",
+        "databricksField": "acv_match_in_tam_plus_no_data",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Eligible customer-site rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "customer_match_status != Not a Customer",
+            "in_extended_tam_scope_flag = yes"
+          ],
+          "currency": "CAD",
+          "unit": "millions",
+          "populationGrain": "Eligible customer-site rows",
+          "lookmlSql": "filtered sum(customer_acv_year / 1000000)",
+          "databricksExpr": "SUM(CAD ACV / 1MM) for customers in extended scope",
+          "rationale": "Preserves Looker customer and extended-scope filters."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.acv_no_market_data",
+        "metricViewName": "tam_buildings",
+        "databricksField": "acv_no_market_data",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "No-market-ID customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "customer_match_status = No Market ID"
+          ],
+          "currency": "CAD",
+          "unit": "millions",
+          "populationGrain": "No-market-ID customer rows",
+          "lookmlSql": "filtered sum(customer_acv_year / 1000000)",
+          "databricksExpr": "SUM(CAD ACV / 1MM) for No Market ID",
+          "rationale": "Exact filtered Looker subtotal."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.acv_no_market_data_excluded",
+        "metricViewName": "tam_buildings",
+        "databricksField": "acv_no_market_data_excluded",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Excluded no-market-ID customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "include_in_tam_customer_estimate = no",
+            "customer_match_status = No Market ID"
+          ],
+          "currency": "CAD",
+          "unit": "millions",
+          "populationGrain": "Excluded no-market-ID customer rows",
+          "lookmlSql": "filtered sum(customer_acv_year / 1000000)",
+          "databricksExpr": "SUM(CAD ACV / 1MM) for excluded No Market ID customers",
+          "rationale": "Preserves both Looker filters."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.acv_no_match_has_market_data",
+        "metricViewName": "tam_buildings",
+        "databricksField": "acv_no_match_has_market_data",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Unmatched customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "customer_match_status = Not Matched: Market Data Not Pulled (Yet)"
+          ],
+          "currency": "CAD",
+          "unit": "millions",
+          "populationGrain": "Unmatched customer rows",
+          "lookmlSql": "filtered sum(customer_acv_year / 1000000)",
+          "databricksExpr": "SUM(CAD ACV / 1MM) for market data not pulled",
+          "rationale": "Exact status-filtered Looker measure."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.customer_acv_outside_geographic_tam",
+        "metricViewName": "tam_buildings",
+        "databricksField": "customer_acv_outside_geographic_tam",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Outside-geography customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "customer_match_status = Outside Geographic TAM"
+          ],
+          "currency": "CAD",
+          "unit": "millions",
+          "populationGrain": "Outside-geography customer rows",
+          "lookmlSql": "filtered sum(customer_acv_year / 1000000)",
+          "databricksExpr": "SUM(CAD ACV / 1MM) outside geography",
+          "rationale": "Exact status-filtered Looker measure."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.acv_market_data_subtotal",
+        "metricViewName": "tam_buildings",
+        "databricksField": "acv_market_data_subtotal",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Customer rows with market data",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "customer_match_status in Looker market-data status set"
+          ],
+          "currency": "CAD",
+          "unit": "millions",
+          "populationGrain": "Customer rows with market data",
+          "lookmlSql": "filtered sum(customer_acv_year / 1000000)",
+          "databricksExpr": "SUM(CAD ACV / 1MM) over market-data statuses",
+          "rationale": "Preserves the Looker market-data subtotal population."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.accounts_count",
+        "metricViewName": "tam_buildings",
+        "databricksField": "accounts_count",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct account",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [],
+          "unit": "count",
+          "populationGrain": "Distinct account",
+          "lookmlSql": "count_distinct(account)",
+          "databricksExpr": "COUNT(DISTINCT account)",
+          "rationale": "Exact distinct account decision-maker count."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.avg_acct_sf_per_building_customer_adjusted",
+        "metricViewName": "tam_buildings",
+        "databricksField": "avg_acct_sf_per_building_customer_adjusted",
+        "kind": "measure",
+        "unit": "square feet",
+        "populationGrain": "Eligible buildings",
+        "evidence": {
+          "aggregation": "Filtered sum divided by filtered distinct building count",
+          "filters": [
+            "in_extended_tam_scope_flag = yes"
+          ],
+          "unit": "square feet",
+          "populationGrain": "Eligible buildings",
+          "lookmlSql": "building_sf_occupied_by_account_adjusted_sum / buildings_count_customer_adjusted",
+          "databricksExpr": "SUM(occupied SF fallback) / COUNT(DISTINCT property_id), both in scope",
+          "rationale": "Inlines both Looker measures to obey source-only metric expressions."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_acv_crit_account_scale",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_acv_crit_account_scale",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Active customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "bridge bucket in size, excluded No Market ID, or not pulled"
+          ],
+          "unit": "millions",
+          "populationGrain": "Active customer rows",
+          "lookmlSql": "sum(CASE bridge bucket ... selected ACV END / 1000000)",
+          "databricksExpr": "SUM(selected ACV / 1MM) for bridge scale buckets",
+          "rationale": "Parameterized bridge ACV subtotal with Looker bucket population."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_acv_excl_not_built",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_acv_excl_not_built",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Active customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "bridge bucket = Excluded - Building Not Built"
+          ],
+          "unit": "millions",
+          "populationGrain": "Active customer rows",
+          "lookmlSql": "bridge CASE sum / 1000000",
+          "databricksExpr": "SUM selected ACV for not-built status",
+          "rationale": "Equivalent bridge ACV bucket."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_acv_excl_20k",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_acv_excl_20k",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Active customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "bridge bucket = Excluded < 20k"
+          ],
+          "unit": "millions",
+          "populationGrain": "Active customer rows",
+          "lookmlSql": "bridge CASE sum / 1000000",
+          "databricksExpr": "SUM selected ACV for excluded <20k",
+          "rationale": "Equivalent bridge ACV bucket."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_acv_excl_size",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_acv_excl_size",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Active customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "parameterized bridge bucket = Excluded < Threshold (Size)"
+          ],
+          "unit": "millions",
+          "populationGrain": "Active customer rows",
+          "lookmlSql": "bridge CASE sum / 1000000",
+          "databricksExpr": "SUM selected ACV for matched size exclusion",
+          "rationale": "Uses the selected square-footage threshold."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_acv_not_pulled",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_acv_not_pulled",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Active customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "bridge bucket = Market Data Not Pulled"
+          ],
+          "unit": "millions",
+          "populationGrain": "Active customer rows",
+          "lookmlSql": "bridge CASE sum / 1000000",
+          "databricksExpr": "SUM selected ACV for fallback bridge bucket",
+          "rationale": "Equivalent fallback bridge ACV bucket."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_acv_no_market_excl",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_acv_no_market_excl",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Active customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "bridge bucket = No Market ID - Excluded"
+          ],
+          "unit": "millions",
+          "populationGrain": "Active customer rows",
+          "lookmlSql": "bridge CASE sum / 1000000",
+          "databricksExpr": "SUM selected ACV for No Market ID below threshold",
+          "rationale": "Parameterized No Market ID exclusion subtotal."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_acv_outside_geo",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_acv_outside_geo",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Active customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "bridge bucket = Outside Geographic TAM"
+          ],
+          "unit": "millions",
+          "populationGrain": "Active customer rows",
+          "lookmlSql": "bridge CASE sum / 1000000",
+          "databricksExpr": "SUM selected ACV outside geography",
+          "rationale": "Equivalent outside-geography bridge subtotal."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_acv_residential",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_acv_residential",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Active customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "bridge bucket = Residential"
+          ],
+          "unit": "millions",
+          "populationGrain": "Active customer rows",
+          "lookmlSql": "bridge CASE sum / 1000000",
+          "databricksExpr": "SUM selected ACV for property-type exclusion",
+          "rationale": "Property-type exclusion is residential per Looker description."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_acv_tam_exclusion",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_acv_tam_exclusion",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Active excluded customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "bridge exclusion population"
+          ],
+          "unit": "millions",
+          "populationGrain": "Active excluded customer rows",
+          "lookmlSql": "bridge CASE sum / 1000000",
+          "databricksExpr": "SUM selected ACV for non-null bridge buckets excluding in-TAM and outside-geography buckets",
+          "rationale": "Equivalent combined building-type or size exclusion subtotal."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_acv_in_tam",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_acv_in_tam",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Active in-TAM customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "bridge bucket in In TAM buckets"
+          ],
+          "unit": "millions",
+          "populationGrain": "Active in-TAM customer rows",
+          "lookmlSql": "bridge CASE sum / 1000000",
+          "databricksExpr": "SUM selected ACV for matched and No Market ID customers passing threshold",
+          "rationale": "Parameterized equivalent of the two in-TAM bridge buckets."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_acv_total",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_acv_total",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "All active customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "customer_bridge_bucket is not null"
+          ],
+          "unit": "millions",
+          "populationGrain": "All active customer rows",
+          "lookmlSql": "bridge CASE sum / 1000000",
+          "databricksExpr": "SUM selected ACV where customer status is not Not a Customer",
+          "rationale": "All non-null bridge buckets foot to total active-customer ACV."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_customers_crit_account_scale",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_customers_crit_account_scale",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "bridge bucket in size, excluded No Market ID, or not pulled"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site",
+          "lookmlSql": "count_distinct(CASE bridge bucket ... cust_unified_building_id END)",
+          "databricksExpr": "COUNT DISTINCT customer sites in scale-related bridge buckets",
+          "rationale": "Exact bridge customer population."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_customers_excl_not_built",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_customers_excl_not_built",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "status = Matched: Excluded by Building Not Built"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site",
+          "lookmlSql": "count_distinct conditional cust_unified_building_id",
+          "databricksExpr": "COUNT DISTINCT sites excluded because building is not built",
+          "rationale": "Equivalent bridge bucket count."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_customers_excl_20k",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_customers_excl_20k",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "status = Matched: Excluded < 20k Sq Ft"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site",
+          "lookmlSql": "count_distinct conditional cust_unified_building_id",
+          "databricksExpr": "COUNT DISTINCT sites excluded <20k",
+          "rationale": "Equivalent bridge bucket count."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_customers_excl_size",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_customers_excl_size",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "parameterized bridge bucket = Excluded < Threshold (Size)"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site",
+          "lookmlSql": "count_distinct conditional cust_unified_building_id",
+          "databricksExpr": "COUNT DISTINCT matched sites failing selected account threshold",
+          "rationale": "Replaces the fixed-size bucket with Looker's live parameter logic."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_customers_not_pulled",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_customers_not_pulled",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "bridge bucket = Market Data Not Pulled"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site",
+          "lookmlSql": "count_distinct conditional cust_unified_building_id",
+          "databricksExpr": "COUNT DISTINCT sites in fallback market-data-not-pulled bucket",
+          "rationale": "Equivalent fallback bridge bucket count."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_customers_no_market_excl",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_customers_no_market_excl",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "status = No Market ID",
+            "parent_cust_sf_estimate below selected threshold"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site",
+          "lookmlSql": "count_distinct conditional cust_unified_building_id",
+          "databricksExpr": "COUNT DISTINCT No Market ID sites below threshold",
+          "rationale": "Parameterized No Market ID bridge exclusion."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_customers_outside_geo",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_customers_outside_geo",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "status = Outside Geographic TAM"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site",
+          "lookmlSql": "count_distinct conditional cust_unified_building_id",
+          "databricksExpr": "COUNT DISTINCT sites outside geographic TAM",
+          "rationale": "Equivalent bridge geography bucket."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_customers_residential",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_customers_residential",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "status = Matched: Excluded by Property Type"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site",
+          "lookmlSql": "count_distinct conditional cust_unified_building_id",
+          "databricksExpr": "COUNT DISTINCT property-type-excluded sites",
+          "rationale": "The Looker description identifies this property-type bucket as residential."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_customers_tam_exclusion",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_customers_tam_exclusion",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct excluded customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "combined bridge exclusion population"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct excluded customer site",
+          "lookmlSql": "count_distinct conditional cust_unified_building_id",
+          "databricksExpr": "COUNT DISTINCT active sites in non-TAM/non-geography bridge buckets",
+          "rationale": "Equivalent combined TAM exclusion count."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_customers_in_tam",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_customers_in_tam",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct in-TAM customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "bridge bucket in In TAM buckets"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct in-TAM customer site",
+          "lookmlSql": "count_distinct conditional cust_unified_building_id",
+          "databricksExpr": "COUNT DISTINCT active sites passing matched or No Market ID threshold logic",
+          "rationale": "Parameterized equivalent of Looker's active customers in TAM."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bridge_customers_total",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bridge_customers_total",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct active customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "customer_bridge_bucket is not null"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct active customer site",
+          "lookmlSql": "count_distinct(CASE bridge bucket is not null THEN cust_unified_building_id END)",
+          "databricksExpr": "COUNT DISTINCT customer sites where status is not Not a Customer",
+          "rationale": "All active-customer bridge buckets foot to this count."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.building_penetration_customer_adjusted",
+        "metricViewName": "tam_buildings",
+        "databricksField": "building_penetration_customer_adjusted",
+        "kind": "measure",
+        "unit": "percent",
+        "populationGrain": "Eligible buildings and customer sites",
+        "evidence": {
+          "aggregation": "Ratio of distinct counts",
+          "filters": [
+            "customer status is not Not a Customer",
+            "extended scope = yes"
+          ],
+          "unit": "percent",
+          "populationGrain": "Eligible buildings and customer sites",
+          "lookmlSql": "customers_site_count_adjusted / buildings_count_customer_adjusted",
+          "databricksExpr": "eligible customer sites / eligible properties",
+          "rationale": "Inlines both distinct-count measures and preserves zero-denominator handling."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.building_sf_occupied_by_account_adjusted_sum",
+        "metricViewName": "tam_buildings",
+        "databricksField": "building_sf_occupied_by_account_adjusted_sum",
+        "kind": "measure",
+        "unit": "square feet",
+        "populationGrain": "Eligible building rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "in_extended_tam_scope_flag = yes"
+          ],
+          "unit": "square feet",
+          "populationGrain": "Eligible building rows",
+          "lookmlSql": "filtered sum(COALESCE(building_sf_occupied_by_account, customer_sf_estimate))",
+          "databricksExpr": "SUM(COALESCE(building_sf_occupied_by_account, customer_sf_estimate)) in scope",
+          "rationale": "Exact Looker SF fallback and eligibility population."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.rba_sum",
+        "metricViewName": "tam_buildings",
+        "databricksField": "rba_sum",
+        "kind": "measure",
+        "unit": "square feet",
+        "populationGrain": "Building rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [],
+          "unit": "square feet",
+          "populationGrain": "Building rows",
+          "lookmlSql": "sum(building_rba)",
+          "databricksExpr": "SUM(building_rba)",
+          "rationale": "Exact building total SF sum."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.buildings_count_customer_adjusted",
+        "metricViewName": "tam_buildings",
+        "databricksField": "buildings_count_customer_adjusted",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct eligible building",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "in_extended_tam_scope_flag = yes"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct eligible building",
+          "lookmlSql": "filtered count_distinct(property_id)",
+          "databricksExpr": "COUNT(DISTINCT property_id) in parameterized scope",
+          "rationale": "Exact denominator used by compiled benchmark SQL s1, s2, s12-s14, and s19."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.count",
+        "metricViewName": "tam_buildings",
+        "databricksField": "count",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Source building rows",
+        "evidence": {
+          "aggregation": "Count",
+          "filters": [],
+          "unit": "count",
+          "populationGrain": "Source building rows",
+          "lookmlSql": "Looker type count",
+          "databricksExpr": "COUNT(*)",
+          "rationale": "Exact row count at staging-view grain."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.customer_acv_year_sum_outside_tam",
+        "metricViewName": "tam_buildings",
+        "databricksField": "customer_acv_year_sum_outside_tam",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "currency",
+        "populationGrain": "Out-of-scope customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "in_extended_tam_scope_flag = no"
+          ],
+          "unit": "currency",
+          "populationGrain": "Out-of-scope customer rows",
+          "lookmlSql": "filtered sum(customer_acv_year_selected)",
+          "databricksExpr": "SUM selected ACV outside parameterized scope",
+          "rationale": "Matches compiled benchmark SQL s4 with native currency selection."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.customer_gross_margin_customer_adjusted",
+        "metricViewName": "tam_buildings",
+        "databricksField": "customer_gross_margin_customer_adjusted",
+        "kind": "measure",
+        "unit": "percent",
+        "populationGrain": "Eligible customer rows",
+        "evidence": {
+          "aggregation": "Ratio of filtered sums",
+          "filters": [
+            "in_extended_tam_scope_flag = yes"
+          ],
+          "unit": "percent",
+          "populationGrain": "Eligible customer rows",
+          "lookmlSql": "customer_gross_profit_sum_customer_adjusted / customer_revenue_sum_customer_adjusted",
+          "databricksExpr": "selected gross profit / selected revenue in scope",
+          "rationale": "Dimensionless ratio with matching currency branches in numerator and denominator."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.customer_gross_profit_sum_customer_adjusted",
+        "metricViewName": "tam_buildings",
+        "databricksField": "customer_gross_profit_sum_customer_adjusted",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "currency",
+        "populationGrain": "Eligible customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "in_extended_tam_scope_flag = yes"
+          ],
+          "unit": "currency",
+          "populationGrain": "Eligible customer rows",
+          "lookmlSql": "filtered sum(customer_gross_profit_selected)",
+          "databricksExpr": "SUM selected gross profit in scope",
+          "rationale": "Uses physical CAD/USD columns and native currency selection."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.customer_revenue_sum_customer_adjusted",
+        "metricViewName": "tam_buildings",
+        "databricksField": "customer_revenue_sum_customer_adjusted",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "currency",
+        "populationGrain": "Eligible customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "in_extended_tam_scope_flag = yes"
+          ],
+          "unit": "currency",
+          "populationGrain": "Eligible customer rows",
+          "lookmlSql": "filtered sum(customer_revenue_selected)",
+          "databricksExpr": "SUM selected customer revenue in scope",
+          "rationale": "Uses physical CAD/USD columns and native currency selection."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.customers_site_count_outside_tam",
+        "metricViewName": "tam_buildings",
+        "databricksField": "customers_site_count_outside_tam",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct out-of-scope customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "in_extended_tam_scope_flag = no"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct out-of-scope customer site",
+          "lookmlSql": "filtered count_distinct(cust_unified_building_id)",
+          "databricksExpr": "COUNT(DISTINCT cust_unified_building_id) outside scope",
+          "rationale": "Matches compiled benchmark SQL s16."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.max_rate",
+        "metricViewName": "tam_buildings",
+        "databricksField": "max_rate",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "currency per square foot",
+        "populationGrain": "Building/facility rate rows",
+        "evidence": {
+          "aggregation": "Median",
+          "filters": [],
+          "unit": "currency per square foot",
+          "populationGrain": "Building/facility rate rows",
+          "lookmlSql": "median(rate_selected)",
+          "databricksExpr": "PERCENTILE_APPROX(selected rate, 0.5)",
+          "rationale": "Despite the legacy field name, the Looker type is median, not maximum."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.customer_acv_year_sum_customer_adjusted",
+        "metricViewName": "tam_buildings",
+        "databricksField": "customer_acv_year_sum_customer_adjusted",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "currency",
+        "populationGrain": "Eligible customer rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "in_extended_tam_scope_flag = yes"
+          ],
+          "unit": "currency",
+          "populationGrain": "Eligible customer rows",
+          "lookmlSql": "filtered sum(customer_acv_year_selected)",
+          "databricksExpr": "SUM selected annualized ACV in scope",
+          "rationale": "Matches compiled benchmark SQL s3 and the selected-currency Looker measure."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.customers_site_count_adjusted",
+        "metricViewName": "tam_buildings",
+        "databricksField": "customers_site_count_adjusted",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct eligible customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "customer_match_status != Not a Customer",
+            "in_extended_tam_scope_flag = yes"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct eligible customer site",
+          "lookmlSql": "filtered count_distinct(cust_unified_building_id)",
+          "databricksExpr": "COUNT(DISTINCT cust_unified_building_id) for customer rows in scope",
+          "rationale": "Matches compiled SQL s2, s15, and s19."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.match_out_of_tam_building_size",
+        "metricViewName": "tam_buildings",
+        "databricksField": "match_out_of_tam_building_size",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "customer_match_status = Matched: Excluded < 100k Sq Ft"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site",
+          "lookmlSql": "filtered count_distinct(cust_unified_building_id)",
+          "databricksExpr": "COUNT DISTINCT sites with fixed <100k exclusion status",
+          "rationale": "Exact legacy status count."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.match_out_of_tam_less_than_20k",
+        "metricViewName": "tam_buildings",
+        "databricksField": "match_out_of_tam_less_than_20k",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "customer_match_status = Matched: Excluded < 20k Sq Ft"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site",
+          "lookmlSql": "filtered count_distinct(cust_unified_building_id)",
+          "databricksExpr": "COUNT DISTINCT sites excluded <20k",
+          "rationale": "Exact Looker status count."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.match_out_of_tam_not_built",
+        "metricViewName": "tam_buildings",
+        "databricksField": "match_out_of_tam_not_built",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "customer_match_status = Matched: Excluded by Building Not Built"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site",
+          "lookmlSql": "filtered count_distinct(cust_unified_building_id)",
+          "databricksExpr": "COUNT DISTINCT sites excluded because building is not built",
+          "rationale": "Exact Looker status count."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.match_out_of_tam_property_type",
+        "metricViewName": "tam_buildings",
+        "databricksField": "match_out_of_tam_property_type",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "customer_match_status = Matched: Excluded by Property Type"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site",
+          "lookmlSql": "filtered count_distinct(cust_unified_building_id)",
+          "databricksExpr": "COUNT DISTINCT property-type-excluded sites",
+          "rationale": "Exact Looker status count."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.match_out_of_tam",
+        "metricViewName": "tam_buildings",
+        "databricksField": "match_out_of_tam",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct excluded customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "customer_match_status in four matched exclusion statuses"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct excluded customer site",
+          "lookmlSql": "filtered count_distinct(cust_unified_building_id)",
+          "databricksExpr": "COUNT DISTINCT sites in four matched exclusion statuses",
+          "rationale": "Exact combined matched exclusion population."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.match_in_tam",
+        "metricViewName": "tam_buildings",
+        "databricksField": "match_in_tam",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "customer_match_status = Matched: In TAM"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site",
+          "lookmlSql": "filtered count_distinct(cust_unified_building_id)",
+          "databricksExpr": "COUNT DISTINCT sites with Matched: In TAM status",
+          "rationale": "Exact Looker status count."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.match_in_tam_plus_no_data",
+        "metricViewName": "tam_buildings",
+        "databricksField": "match_in_tam_plus_no_data",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct eligible customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "customer_match_status != Not a Customer",
+            "in_extended_tam_scope_flag = yes"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct eligible customer site",
+          "lookmlSql": "filtered count_distinct(cust_unified_building_id)",
+          "databricksExpr": "COUNT DISTINCT customer sites in parameterized extended scope",
+          "rationale": "Preserves both Looker filters."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.no_market_data",
+        "metricViewName": "tam_buildings",
+        "databricksField": "no_market_data",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "customer_match_status = No Market ID"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site",
+          "lookmlSql": "filtered count_distinct(cust_unified_building_id)",
+          "databricksExpr": "COUNT DISTINCT No Market ID customer sites",
+          "rationale": "Exact Looker status count."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.no_market_data_excluded",
+        "metricViewName": "tam_buildings",
+        "databricksField": "no_market_data_excluded",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct excluded no-market-ID site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "include_in_tam_customer_estimate = no",
+            "customer_match_status = No Market ID"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct excluded no-market-ID site",
+          "lookmlSql": "filtered count_distinct(cust_unified_building_id)",
+          "databricksExpr": "COUNT DISTINCT excluded No Market ID sites",
+          "rationale": "Preserves the two Looker filters."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.no_market_data_included",
+        "metricViewName": "tam_buildings",
+        "databricksField": "no_market_data_included",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct included no-market-ID site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "include_in_tam_customer_estimate = yes",
+            "customer_match_status = No Market ID"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct included no-market-ID site",
+          "lookmlSql": "filtered count_distinct(cust_unified_building_id)",
+          "databricksExpr": "COUNT DISTINCT included No Market ID sites",
+          "rationale": "Preserves the two Looker filters."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.no_match_has_market_data",
+        "metricViewName": "tam_buildings",
+        "databricksField": "no_match_has_market_data",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "customer_match_status = Not Matched: Market Data Not Pulled (Yet)"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site",
+          "lookmlSql": "filtered count_distinct(cust_unified_building_id)",
+          "databricksExpr": "COUNT DISTINCT sites awaiting market-data pull",
+          "rationale": "Exact status-filtered Looker count."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.customer_outside_geographic_tam",
+        "metricViewName": "tam_buildings",
+        "databricksField": "customer_outside_geographic_tam",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "customer_match_status = Outside Geographic TAM"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site",
+          "lookmlSql": "filtered count_distinct(cust_unified_building_id)",
+          "databricksExpr": "COUNT DISTINCT sites outside geographic TAM",
+          "rationale": "Exact status-filtered Looker count."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.revenue_share_customer_adjusted",
+        "metricViewName": "tam_buildings",
+        "databricksField": "revenue_share_customer_adjusted",
+        "kind": "measure",
+        "unit": "percent",
+        "populationGrain": "Eligible building/customer rows",
+        "evidence": {
+          "aggregation": "Ratio of filtered sums",
+          "filters": [
+            "in_extended_tam_scope_flag = yes"
+          ],
+          "unit": "percent",
+          "populationGrain": "Eligible building/customer rows",
+          "lookmlSql": "customer_acv_year_sum_customer_adjusted / revenue_estimate_sum_customer_adjusted",
+          "databricksExpr": "selected in-scope customer ACV / selected in-scope revenue estimate",
+          "rationale": "Matches compiled SQL s18 and remains dimensionless across currency choices."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.revenue_estimate_sum_customer_adjusted",
+        "metricViewName": "tam_buildings",
+        "databricksField": "revenue_estimate_sum_customer_adjusted",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "currency",
+        "populationGrain": "Eligible building rows",
+        "evidence": {
+          "aggregation": "Sum",
+          "filters": [
+            "in_extended_tam_scope_flag = yes"
+          ],
+          "unit": "currency",
+          "populationGrain": "Eligible building rows",
+          "lookmlSql": "filtered sum(revenue_estimate_selected)",
+          "databricksExpr": "SUM selected revenue estimate in parameterized scope",
+          "rationale": "Matches compiled benchmark SQL s1, s2, s17-s19 with CAD default."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.market_data_subtotal",
+        "metricViewName": "tam_buildings",
+        "databricksField": "market_data_subtotal",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct customer site with market data",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "customer_match_status in Looker market-data status set"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct customer site with market data",
+          "lookmlSql": "filtered count_distinct(cust_unified_building_id)",
+          "databricksExpr": "COUNT DISTINCT sites in Looker market-data statuses",
+          "rationale": "Exact Looker market-data subtotal population."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.building_penetration",
+        "metricViewName": "tam_buildings",
+        "databricksField": "building_penetration",
+        "kind": "measure",
+        "unit": "percent",
+        "populationGrain": "Eligible buildings and customer sites",
+        "evidence": {
+          "aggregation": "Ratio of distinct counts",
+          "filters": [
+            "customer status is not Not a Customer",
+            "extended scope = yes"
+          ],
+          "unit": "percent",
+          "populationGrain": "Eligible buildings and customer sites",
+          "lookmlSql": "Benchmark s5 only compiles building_penetration_customer_adjusted",
+          "databricksExpr": "Same eligible customer-site/building ratio compiled for the benchmark",
+          "rationale": "Compatibility field for the selected legacy benchmark field; compiled SQL evidence identifies the adjusted ratio as the returned KPI."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.buildings_count",
+        "metricViewName": "tam_buildings",
+        "databricksField": "buildings_count",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct eligible building",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "extended scope = yes"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct eligible building",
+          "lookmlSql": "Benchmark s14 only compiles buildings_count_customer_adjusted",
+          "databricksExpr": "COUNT DISTINCT eligible property_id",
+          "rationale": "Compatibility field based on the sole building count returned by compiled benchmark SQL."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.buildings_count_coverage_adjusted",
+        "metricViewName": "tam_buildings",
+        "databricksField": "buildings_count_coverage_adjusted",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct eligible building",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "extended scope = yes"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct eligible building",
+          "lookmlSql": "Benchmark s14 only compiles buildings_count_customer_adjusted",
+          "databricksExpr": "COUNT DISTINCT eligible property_id",
+          "rationale": "Compatibility field; benchmark SQL provides no separate coverage-adjusted expression and returns the customer-adjusted count."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.customers_site_count",
+        "metricViewName": "tam_buildings",
+        "databricksField": "customers_site_count",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct eligible customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "customer status is not Not a Customer",
+            "extended scope = yes"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct eligible customer site",
+          "lookmlSql": "Benchmark s15 only compiles customers_site_count_adjusted",
+          "databricksExpr": "COUNT DISTINCT eligible customer site",
+          "rationale": "Compatibility field based on the customer-site count returned by compiled SQL."
+        }
+      },
+      {
+        "lookerField": "customer_sites_outside_tam",
+        "metricViewName": "tam_buildings",
+        "databricksField": "customer_sites_outside_tam",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct out-of-scope customer site",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [
+            "in_extended_tam_scope_flag = no",
+            "customer_match_status not in Not a Customer, Matched: In TAM"
+          ],
+          "unit": "count",
+          "populationGrain": "Distinct out-of-scope customer site",
+          "lookmlSql": "Dynamic count_distinct based on customers_site_count_outside_tam with status exclusions",
+          "databricksExpr": "COUNT DISTINCT out-of-scope customer sites excluding Not a Customer and Matched: In TAM",
+          "rationale": "Implements the dashboard custom measure with the same bare name."
+        }
+      },
+      {
+        "lookerField": "tam_revenue_estimate_mms",
+        "metricViewName": "tam_buildings",
+        "databricksField": "tam_revenue_estimate_mms",
+        "kind": "measure",
+        "currency": "CAD",
+        "unit": "millions",
+        "populationGrain": "Eligible building rows",
+        "evidence": {
+          "aggregation": "Filtered sum divided by one million",
+          "filters": [
+            "in_extended_tam_scope_flag = yes"
+          ],
+          "unit": "millions",
+          "populationGrain": "Eligible building rows",
+          "lookmlSql": "revenue_estimate_sum_customer_adjusted / 1000000",
+          "databricksExpr": "SUM selected in-scope revenue estimate / 1000000",
+          "rationale": "Promotes the durable dashboard calculation into an aggregate metric while preserving the source measure population."
+        }
+      },
+      {
+        "lookerField": "territory_index",
+        "metricViewName": "tam_buildings",
+        "databricksField": "territory_index",
+        "kind": "measure",
+        "unit": "count",
+        "populationGrain": "Distinct territory",
+        "evidence": {
+          "aggregation": "Count distinct",
+          "filters": [],
+          "unit": "count",
+          "populationGrain": "Distinct territory",
+          "lookmlSql": "Dynamic count_distinct based on geo_label_for_map",
+          "databricksExpr": "COUNT(DISTINCT territory)",
+          "rationale": "Compiled SQL s20 resolves the map label to territory."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.account",
+        "metricViewName": "tam_buildings",
+        "databricksField": "account",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.account ",
+          "databricksExpr": "account",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.account_number_buildings_total",
+        "metricViewName": "tam_buildings",
+        "databricksField": "account_number_buildings_total",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.account_number_buildings_total ",
+          "databricksExpr": "account_number_buildings_total",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.account_sf_total",
+        "metricViewName": "tam_buildings",
+        "databricksField": "account_sf_total",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.account_sf_total ",
+          "databricksExpr": "account_sf_total",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.address",
+        "metricViewName": "tam_buildings",
+        "databricksField": "address",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.address ",
+          "databricksExpr": "address",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.branch",
+        "metricViewName": "tam_buildings",
+        "databricksField": "branch",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.branch ",
+          "databricksExpr": "branch",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.building_name",
+        "metricViewName": "tam_buildings",
+        "databricksField": "building_name",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.building_name ",
+          "databricksExpr": "building_name",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.building_rba",
+        "metricViewName": "tam_buildings",
+        "databricksField": "building_rba",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.building_rba ",
+          "databricksExpr": "building_rba",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.building_status",
+        "metricViewName": "tam_buildings",
+        "databricksField": "building_status",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.building_status ",
+          "databricksExpr": "building_status",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.city",
+        "metricViewName": "tam_buildings",
+        "databricksField": "city",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.city ",
+          "databricksExpr": "city",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.country",
+        "metricViewName": "tam_buildings",
+        "databricksField": "country",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.country ",
+          "databricksExpr": "country",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.cust_original_building_id",
+        "metricViewName": "tam_buildings",
+        "databricksField": "cust_original_building_id",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.cust_original_building_id ",
+          "databricksExpr": "cust_original_building_id",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.cust_unified_building_id",
+        "metricViewName": "tam_buildings",
+        "databricksField": "cust_unified_building_id",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.cust_unified_building_id ",
+          "databricksExpr": "cust_unified_building_id",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.customer_match_status",
+        "metricViewName": "tam_buildings",
+        "databricksField": "customer_match_status",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.customer_match_status ",
+          "databricksExpr": "customer_match_status",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.customer_sf_estimate",
+        "metricViewName": "tam_buildings",
+        "databricksField": "customer_sf_estimate",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.customer_sf_estimate ",
+          "databricksExpr": "customer_sf_estimate",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.secondary_type",
+        "metricViewName": "tam_buildings",
+        "databricksField": "secondary_type",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.secondary_type ",
+          "databricksExpr": "secondary_type",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.sector",
+        "metricViewName": "tam_buildings",
+        "databricksField": "sector",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.sector ",
+          "databricksExpr": "sector",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.is_current_customer",
+        "metricViewName": "tam_buildings",
+        "databricksField": "is_current_customer",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.is_current_customer ",
+          "databricksExpr": "is_current_customer",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.key_tenant_name",
+        "metricViewName": "tam_buildings",
+        "databricksField": "key_tenant_name",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.key_tenant_name ",
+          "databricksExpr": "key_tenant_name",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.key_tenant_sf_total",
+        "metricViewName": "tam_buildings",
+        "databricksField": "key_tenant_sf_total",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.key_tenant_sf_total ",
+          "databricksExpr": "key_tenant_sf_total",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.largest_tenant_name",
+        "metricViewName": "tam_buildings",
+        "databricksField": "largest_tenant_name",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.largest_tenant_name ",
+          "databricksExpr": "largest_tenant_name",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.latitude",
+        "metricViewName": "tam_buildings",
+        "databricksField": "latitude",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.latitude ",
+          "databricksExpr": "latitude",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.longitude",
+        "metricViewName": "tam_buildings",
+        "databricksField": "longitude",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.longitude ",
+          "databricksExpr": "longitude",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.naics",
+        "metricViewName": "tam_buildings",
+        "databricksField": "naics",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.naics ",
+          "databricksExpr": "naics",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.national_or_regional_account_flag",
+        "metricViewName": "tam_buildings",
+        "databricksField": "national_or_regional_account_flag",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.national_or_regional_account_flag ",
+          "databricksExpr": "national_or_regional_account_flag",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.owner_name",
+        "metricViewName": "tam_buildings",
+        "databricksField": "owner_name",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.owner_name ",
+          "databricksExpr": "owner_name",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.owner_sf_total",
+        "metricViewName": "tam_buildings",
+        "databricksField": "owner_sf_total",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.owner_sf_total ",
+          "databricksExpr": "owner_sf_total",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.cust_parent_customer",
+        "metricViewName": "tam_buildings",
+        "databricksField": "cust_parent_customer",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.cust_parent_customer ",
+          "databricksExpr": "cust_parent_customer",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.parent_cust_sf_estimate",
+        "metricViewName": "tam_buildings",
+        "databricksField": "parent_cust_sf_estimate",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.parent_cust_sf_estimate ",
+          "databricksExpr": "parent_cust_sf_estimate",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.property_id",
+        "metricViewName": "tam_buildings",
+        "databricksField": "property_id",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.property_id ",
+          "databricksExpr": "property_id",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.property_manager_name",
+        "metricViewName": "tam_buildings",
+        "databricksField": "property_manager_name",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.property_manager_name ",
+          "databricksExpr": "property_manager_name",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.property_manager_sf_total",
+        "metricViewName": "tam_buildings",
+        "databricksField": "property_manager_sf_total",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.property_manager_sf_total ",
+          "databricksExpr": "property_manager_sf_total",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.region",
+        "metricViewName": "tam_buildings",
+        "databricksField": "region",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.region ",
+          "databricksExpr": "region",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.bdm_sales_name",
+        "metricViewName": "tam_buildings",
+        "databricksField": "bdm_sales_name",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.bdm_sales_name ",
+          "databricksExpr": "bdm_sales_name",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.vp_sales_name",
+        "metricViewName": "tam_buildings",
+        "databricksField": "vp_sales_name",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.vp_sales_name ",
+          "databricksExpr": "vp_sales_name",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.state",
+        "metricViewName": "tam_buildings",
+        "databricksField": "state",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.state ",
+          "databricksExpr": "state",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.industry",
+        "metricViewName": "tam_buildings",
+        "databricksField": "industry",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.industry ",
+          "databricksExpr": "industry",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.outside_geographic_tam",
+        "metricViewName": "tam_buildings",
+        "databricksField": "outside_geographic_tam",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.outside_geographic_tam ",
+          "databricksExpr": "outside_geographic_tam",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.zip",
+        "metricViewName": "tam_buildings",
+        "databricksField": "zip",
+        "kind": "dimension",
+        "populationGrain": "row",
+        "evidence": {
+          "aggregation": "none",
+          "filters": [],
+          "currency": "",
+          "unit": "",
+          "populationGrain": "row",
+          "lookmlSql": "${TABLE}.zip ",
+          "databricksExpr": "zip",
+          "rationale": "Deterministic passthrough: LookML sql is a simple source column reference; mapped 1:1 by name."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.include_in_tam_owner",
+        "metricViewName": "tam_buildings",
+        "databricksField": "include_in_tam_owner",
+        "kind": "dimension",
+        "evidence": {
+          "lookmlSql": "fct_tam_buildings.include_in_tam_owner yesno",
+          "databricksExpr": "CASE WHEN include_in_tam_owner IS TRUE THEN 'Yes' WHEN include_in_tam_owner IS FALSE THEN 'No' ELSE NULL END",
+          "rationale": "Boolean source mapped to Looker Yes/No filter values for stakeholder tiles."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.include_in_tam_property_manager",
+        "metricViewName": "tam_buildings",
+        "databricksField": "include_in_tam_property_manager",
+        "kind": "dimension",
+        "evidence": {
+          "lookmlSql": "fct_tam_buildings.include_in_tam_property_manager yesno",
+          "databricksExpr": "CASE WHEN include_in_tam_property_manager IS TRUE THEN 'Yes' WHEN include_in_tam_property_manager IS FALSE THEN 'No' ELSE NULL END",
+          "rationale": "Boolean source mapped to Looker Yes/No filter values for stakeholder tiles."
+        }
+      },
+      {
+        "lookerField": "fct_tam_buildings.include_in_tam_key_tenant",
+        "metricViewName": "tam_buildings",
+        "databricksField": "include_in_tam_key_tenant",
+        "kind": "dimension",
+        "evidence": {
+          "lookmlSql": "fct_tam_buildings.include_in_tam_key_tenant yesno",
+          "databricksExpr": "CASE WHEN include_in_tam_key_tenant IS TRUE THEN 'Yes' WHEN include_in_tam_key_tenant IS FALSE THEN 'No' ELSE NULL END",
+          "rationale": "Boolean source mapped to Looker Yes/No filter values for stakeholder tiles."
+        }
+      }
+    ],
+    "grain": "Building-level source rows with property_id as the building-count key and cust_unified_building_id as the customer-site key.",
+    "name": "tam_buildings",
+    "schema": "semantic_migration_dev",
+    "type": "metric_view",
+    "yaml": "version: \"1.1\"\nsource: databricks_prd.semantic_migration_dev.tam_buildings_staging\nparameters:\n  - name: square_footage_threshold\n    data_type: LONG\n    default: 100000\n  - name: currency\n    data_type: STRING\n    default: \"'cad'\"\ndimensions:\n  - name: consolidated_sector_2\n    expr: NULLIF(TRIM(consolidated_sector_2), '')\n    display_name: Fct Tam Buildings Consolidated Facility Type\n    comment: Top-level facility segmentation used for market sizing.\n    synonyms:\n      - Consolidated Sector 2\n  - name: consolidated_sector_2_sort\n    expr: |-\n      CASE\n        WHEN NULLIF(TRIM((NULLIF(TRIM((NULLIF(TRIM(consolidated_sector_2), ''))), ''))), '') = 'Office' THEN 1\n        WHEN NULLIF(TRIM((NULLIF(TRIM((NULLIF(TRIM(consolidated_sector_2), ''))), ''))), '') = 'Industrial' THEN 2\n        WHEN NULLIF(TRIM((NULLIF(TRIM((NULLIF(TRIM(consolidated_sector_2), ''))), ''))), '') = 'Warehouse/Distribution' THEN 3\n        WHEN NULLIF(TRIM((NULLIF(TRIM((NULLIF(TRIM(consolidated_sector_2), ''))), ''))), '') = 'Manufacturing' THEN 4\n        WHEN NULLIF(TRIM((NULLIF(TRIM((NULLIF(TRIM(consolidated_sector_2), ''))), ''))), '') = 'Retail' THEN 5\n        WHEN NULLIF(TRIM((NULLIF(TRIM((NULLIF(TRIM(consolidated_sector_2), ''))), ''))), '') = 'Specialty' THEN 6\n        WHEN NULLIF(TRIM((NULLIF(TRIM((NULLIF(TRIM(consolidated_sector_2), ''))), ''))), '') = 'Healthcare' THEN 7\n        ELSE 999\n      END\n    display_name: Fct Tam Buildings Consolidated Sector 2 Sort\n    comment: Numeric display order for consolidated facility type.\n    format:\n      type: number\n    synonyms:\n      - Consolidated Sector 2 Sort\n  - name: customer_bridge_bucket\n    expr: |-\n      CASE\n        WHEN customer_match_status = 'Not a Customer' THEN NULL\n        WHEN customer_match_status = 'Matched: In TAM' THEN\n          CASE WHEN coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold\n               THEN '1 In TAM' ELSE '4 Excluded < Threshold (Size)' END\n        WHEN customer_match_status = 'Matched: Excluded < 100k Sq Ft' THEN '4 Excluded < Threshold (Size)'\n        WHEN customer_match_status = 'No Market ID' THEN\n          CASE WHEN coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold\n               THEN '2 In TAM (No Market ID)' ELSE '8 No Market ID - Excluded' END\n        WHEN customer_match_status = 'Outside Geographic TAM' THEN '3 Outside Geographic TAM'\n        WHEN customer_match_status = 'Matched: Excluded < 20k Sq Ft' THEN '5 Excluded < 20k'\n        WHEN customer_match_status = 'Matched: Excluded by Property Type' THEN '6 Residential'\n        WHEN customer_match_status = 'Matched: Excluded by Building Not Built' THEN '7 Excluded - Building Not Built'\n        ELSE '9 Market Data Not Pulled'\n      END\n    display_name: Fct Tam Buildings Customer Bridge Bucket\n    comment: MECE reconciliation bucket for active customers at the selected minimum account square footage.\n    synonyms:\n      - Customer Bridge Bucket\n  - name: geo_label_for_map\n    expr: territory\n    display_name: Fct Tam Buildings Geo Label for Map\n    comment: Map-ready geography label based on territory.\n    synonyms:\n      - map geography\n      - territory label\n      - Geo Label For Map\n  - name: in_extended_tam_scope_flag\n    expr: |-\n      CASE\n        WHEN customer_match_status = 'No Market ID'\n          THEN coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold\n        WHEN customer_match_status IN ('Matched: In TAM', 'Not a Customer')\n          THEN coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold\n        ELSE false\n      END\n    display_name: Fct Tam Buildings In Extended Tam Scope Flag (Yes / No)\n    comment: Indicates eligibility for the extended TAM at the selected account square-footage threshold.\n    synonyms:\n      - In Extended Tam Scope Flag\n  - name: market_passes_sf_threshold\n    expr: |-\n      coalesce(building_rba, 0) >= 20000\n      AND _mv_sf_threshold_basis >= square_footage_threshold\n    display_name: Fct Tam Buildings Market Passes Sf Threshold (Yes / No)\n    comment: Indicates whether a market building passes the building and account-scale thresholds.\n    synonyms:\n      - Market Passes Sf Threshold\n  - name: naics_code\n    expr: RIGHT(naics, 6)\n    display_name: Fct Tam Buildings Naics Code\n    comment: Six-character NAICS code suffix.\n    synonyms:\n      - Naics Code\n  - name: revenue_estimate_selected\n    expr: |-\n      CASE WHEN lower(currency) = 'usd'\n           THEN _mv_revenue_estimate_usd\n           ELSE _mv_revenue_estimate_cad\n      END\n    display_name: Fct Tam Buildings Revenue Estimate Selected\n    comment: Per-row revenue estimate in the selected currency; CAD is the default.\n    format:\n      type: currency\n      currency_code: CAD\n    synonyms:\n      - Revenue Estimate Selected\n  - name: sector_sort\n    expr: |-\n      CASE\n        WHEN sector = 'Office - Multi-Tenant' THEN 1\n        WHEN sector = 'Office - Single-Tenant' THEN 2\n        WHEN sector = 'Flex' THEN 3\n        WHEN sector = 'Hospitals' THEN 4\n        WHEN sector = 'Long Term Care' THEN 5\n        WHEN sector = 'Healthcare - General' THEN 6\n        WHEN sector = 'Manufacturing' THEN 7\n        WHEN sector = 'Warehouse/Distribution' THEN 8\n        WHEN sector = 'Food Processing' THEN 9\n        WHEN sector = 'Data Centers' THEN 10\n        WHEN sector = 'Industrial - General' THEN 11\n        WHEN sector = 'Retail - General' THEN 12\n        WHEN sector = 'Freestanding and Department Stores' THEN 13\n        WHEN sector = 'Shopping Malls' THEN 14\n        WHEN sector = 'Airports' THEN 15\n        WHEN sector = 'Airplane Hangars' THEN 16\n        WHEN sector = 'Schools' THEN 17\n        WHEN sector = 'Sports & Entertainment' THEN 18\n        WHEN sector = 'Hotels & Hospitality' THEN 19\n        WHEN sector = 'Other' THEN 20\n        ELSE 999\n      END\n    display_name: Fct Tam Buildings Sector Sort\n    comment: Numeric display order for detailed facility type.\n    format:\n      type: number\n    synonyms:\n      - Sector Sort\n  - name: territory\n    expr: territory\n    display_name: Fct Tam Buildings Territory\n    comment: Primary sales territory used for TAM planning and performance management.\n  - name: account\n    expr: account\n    display_name: Fct Tam Buildings Account\n    comment: Selected decision-maker stakeholder for the building (for example tenant, owner, or property manager) used for account-level TAM analysis.\n  - name: account_number_buildings_total\n    expr: account_number_buildings_total\n    display_name: \"Fct Tam Buildings Account # Buildings\"\n    format:\n      type: number\n    synonyms:\n      - Account Number Buildings Total\n      - Account Number Buildings\n  - name: account_sf_total\n    expr: account_sf_total\n    display_name: Fct Tam Buildings Account Sf Total\n    format:\n      type: number\n    synonyms:\n      - Account Sf Total\n      - Account Sf\n  - name: address\n    expr: address\n    display_name: Fct Tam Buildings Address\n  - name: branch\n    expr: branch\n    display_name: Fct Tam Buildings Branch\n    comment: Operational branch location used for local service delivery (part of Region -> Territory -> Branch hierarchy).\n  - name: building_name\n    expr: building_name\n    display_name: Fct Tam Buildings Building Name\n    synonyms:\n      - Building Name\n  - name: building_rba\n    expr: building_rba\n    display_name: Fct Tam Buildings Building Square Footage\n    comment: Rentable Building Area (RBA) in square feet. Primary size field used in TAM qualification and revenue potential calculations.\n    format:\n      type: number\n    synonyms:\n      - Building Rba\n  - name: building_status\n    expr: building_status\n    display_name: Fct Tam Buildings Building Status\n    comment: Lifecycle status of the building (for example Existing, Under Construction, Demolished). Existing buildings are typically the TAM-eligible population.\n    synonyms:\n      - Building Status\n  - name: city\n    expr: city\n    display_name: Fct Tam Buildings City\n    comment: City where the building is located.\n  - name: country\n    expr: country\n    display_name: Fct Tam Buildings Country\n    comment: Country for the building location (United States or Canada).\n  - name: cust_original_building_id\n    expr: cust_original_building_id\n    display_name: Fct Tam Buildings Cust Original Building ID\n    synonyms:\n      - Cust Original Building Id\n  - name: cust_unified_building_id\n    expr: cust_unified_building_id\n    display_name: Fct Tam Buildings Customer ID\n    comment: Unified customer-system building identifier used for customer-level distinct counts and customer match metrics.\n    synonyms:\n      - Cust Unified Building Id\n  - name: customer_match_status\n    expr: customer_match_status\n    display_name: Fct Tam Buildings Customer Match Status\n    comment: \"TAM qualification category for each building (for example Matched: In TAM, No Market ID, Excluded categories, Outside Geographic TAM). Use for customer bridge analysis; do not use this as the only filter for total TAM market sizing.\"\n    synonyms:\n      - Customer Match Status\n  - name: customer_sf_estimate\n    expr: customer_sf_estimate\n    display_name: Fct Tam Buildings Customer SF Estimate (with No Market Data)\n    comment: Estimated customer square footage used when market data is missing (No Market ID) so customer-adjusted TAM measures remain inclusive.\n    format:\n      type: number\n    synonyms:\n      - Customer Sf Estimate\n  - name: secondary_type\n    expr: secondary_type\n    display_name: Fct Tam Buildings Facility Subtype\n    synonyms:\n      - Secondary Type\n  - name: sector\n    expr: sector\n    display_name: Fct Tam Buildings Facility Type\n    comment: Detailed facility type used for granular TAM segmentation within the consolidated facility groups.\n  - name: is_current_customer\n    expr: is_current_customer\n    display_name: Fct Tam Buildings Is Current Customer (Yes / No)\n    comment: Yes if the building is currently serviced by GDI; No for prospects/non-customers.\n    synonyms:\n      - Is Current Customer\n  - name: include_in_tam_owner\n    expr: |-\n      CASE\n        WHEN include_in_tam_owner IS TRUE THEN 'Yes'\n        WHEN include_in_tam_owner IS FALSE THEN 'No'\n        ELSE NULL\n      END\n    display_name: Fct Tam Buildings Include In Tam Owner (Yes / No)\n    comment: Looker yesno filter for owner-in-TAM stakeholder tiles.\n    synonyms:\n      - Include In Tam Owner\n  - name: include_in_tam_property_manager\n    expr: |-\n      CASE\n        WHEN include_in_tam_property_manager IS TRUE THEN 'Yes'\n        WHEN include_in_tam_property_manager IS FALSE THEN 'No'\n        ELSE NULL\n      END\n    display_name: Fct Tam Buildings Include In Tam Property Manager (Yes / No)\n    comment: Looker yesno filter for property-manager stakeholder tiles.\n    synonyms:\n      - Include In Tam Property Manager\n  - name: include_in_tam_key_tenant\n    expr: |-\n      CASE\n        WHEN include_in_tam_key_tenant IS TRUE THEN 'Yes'\n        WHEN include_in_tam_key_tenant IS FALSE THEN 'No'\n        ELSE NULL\n      END\n    display_name: Fct Tam Buildings Include In Tam Key Tenant (Yes / No)\n    comment: Looker yesno filter for key-tenant stakeholder tiles.\n    synonyms:\n      - Include In Tam Key Tenant\n  - name: key_tenant_name\n    expr: key_tenant_name\n    display_name: Fct Tam Buildings Key Tenant Name\n    comment: Key tenant associated with the building, used in stakeholder-level market and account analysis.\n    synonyms:\n      - Key Tenant Name\n  - name: key_tenant_sf_total\n    expr: key_tenant_sf_total\n    display_name: Fct Tam Buildings Key Tenant Sf Total\n    format:\n      type: number\n    synonyms:\n      - Key Tenant Sf Total\n      - Key Tenant Sf\n  - name: largest_tenant_name\n    expr: largest_tenant_name\n    display_name: Fct Tam Buildings Largest Tenant Name\n    comment: Largest tenant identified for the building.\n    synonyms:\n      - Largest Tenant Name\n  - name: latitude\n    expr: latitude\n    display_name: Fct Tam Buildings Latitude\n    comment: Latitude coordinate for mapping.\n    format:\n      type: number\n  - name: longitude\n    expr: longitude\n    display_name: Fct Tam Buildings Longitude\n    comment: Longitude coordinate for mapping.\n    format:\n      type: number\n  - name: naics\n    expr: naics\n    display_name: Fct Tam Buildings Naics\n  - name: national_or_regional_account_flag\n    expr: national_or_regional_account_flag\n    display_name: Fct Tam Buildings National or Regional\n    synonyms:\n      - National Or Regional Account Flag\n  - name: owner_name\n    expr: owner_name\n    display_name: Fct Tam Buildings Owner Name\n    comment: Building owner organization.\n    synonyms:\n      - Owner Name\n  - name: owner_sf_total\n    expr: owner_sf_total\n    display_name: Fct Tam Buildings Owner Sf Total\n    format:\n      type: number\n    synonyms:\n      - Owner Sf Total\n      - Owner Sf\n  - name: cust_parent_customer\n    expr: cust_parent_customer\n    display_name: Fct Tam Buildings Parent Customer\n    comment: Parent company rollup used for account-family analysis across multiple buildings and geographies.\n    synonyms:\n      - Cust Parent Customer\n  - name: parent_cust_sf_estimate\n    expr: parent_cust_sf_estimate\n    display_name: Fct Tam Buildings Parent Customer SF Estimate (with No Market Data)\n    format:\n      type: number\n    synonyms:\n      - Parent Cust Sf Estimate\n  - name: property_id\n    expr: property_id\n    display_name: Fct Tam Buildings Property ID\n    comment: Primary key for TAM buildings; unique building identifier and the recommended join key for building-grain analysis.\n    synonyms:\n      - Property Id\n  - name: property_manager_name\n    expr: property_manager_name\n    display_name: Fct Tam Buildings Property Manager Name\n    comment: Property manager organization for the building.\n    synonyms:\n      - Property Manager Name\n  - name: property_manager_sf_total\n    expr: property_manager_sf_total\n    display_name: Fct Tam Buildings Property Manager Sf Total\n    format:\n      type: number\n    synonyms:\n      - Property Manager Sf Total\n      - Property Manager Sf\n  - name: region\n    expr: region\n    display_name: Fct Tam Buildings Region\n    comment: Top-level sales geography used for leadership reporting and security filtering.\n  - name: bdm_sales_name\n    expr: bdm_sales_name\n    display_name: Fct Tam Buildings Sales BDM Name\n    synonyms:\n      - Bdm Sales Name\n  - name: vp_sales_name\n    expr: vp_sales_name\n    display_name: Fct Tam Buildings Sales VP Name\n    synonyms:\n      - Vp Sales Name\n  - name: state\n    expr: state\n    display_name: Fct Tam Buildings State\n    comment: State or province where the building is located.\n  - name: industry\n    expr: industry\n    display_name: Fct Tam Buildings Tenant Industry\n  - name: outside_geographic_tam\n    expr: outside_geographic_tam\n    display_name: Fct Tam Buildings View Customers Outside of Geographic TAM?\n    comment: Flag used to identify customer records outside the formal geographic TAM definition.\n    synonyms:\n      - Outside Geographic Tam\n  - name: zip\n    expr: zip\n    display_name: Fct Tam Buildings Zip\nmeasures:\n  - name: acv_match_out_of_tam_building_size\n    expr: \"COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'Matched: Excluded < 100k Sq Ft'), 0)\"\n    display_name: Fct Tam Buildings ACV Matched Excluded Less Than 100k Sq Ft\n    comment: CAD annual contract value in millions for the fixed legacy building-size exclusion status.\n    synonyms:\n      - excluded size ACV\n      - out of TAM building size ACV\n      - \"Fct Tam Buildings ACV Matched: Excluded < 100k Sq Ft\"\n      - Acv Match Out Of Tam Building Size\n    format:\n      type: currency\n      currency_code: CAD\n  - name: acv_match_out_of_tam_less_than_20k\n    expr: \"COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'Matched: Excluded < 20k Sq Ft'), 0)\"\n    display_name: Fct Tam Buildings ACV Matched Excluded Less Than 20k Sq Ft\n    comment: CAD annual contract value in millions for customers excluded below 20k square feet.\n    synonyms:\n      - excluded under 20k ACV\n      - \"Fct Tam Buildings ACV Matched: Excluded < 20k Sq Ft\"\n      - Acv Match Out Of Tam Less Than 20k\n    format:\n      type: currency\n      currency_code: CAD\n  - name: acv_match_out_of_tam_not_built\n    expr: \"COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'Matched: Excluded by Building Not Built'), 0)\"\n    display_name: Fct Tam Buildings ACV Matched Excluded by Building Not Built\n    comment: CAD annual contract value in millions excluded because buildings are not built.\n    synonyms:\n      - not built ACV\n      - \"Fct Tam Buildings ACV Matched: Excluded by Building Not Built\"\n      - Acv Match Out Of Tam Not Built\n    format:\n      type: currency\n      currency_code: CAD\n  - name: acv_match_out_of_tam_property_type\n    expr: \"COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'Matched: Excluded by Property Type'), 0)\"\n    display_name: Fct Tam Buildings ACV Matched Excluded by Property Type\n    comment: CAD annual contract value in millions excluded by property type.\n    synonyms:\n      - residential exclusion ACV\n      - \"Fct Tam Buildings ACV Matched: Excluded by Property Type\"\n      - Acv Match Out Of Tam Property Type\n    format:\n      type: currency\n      currency_code: CAD\n  - name: acv_match_out_of_tam\n    expr: \"COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status IN ('Matched: Excluded by Building Not Built', 'Matched: Excluded < 20k Sq Ft', 'Matched: Excluded by Property Type', 'Matched: Excluded < 100k Sq Ft')), 0)\"\n    display_name: Fct Tam Buildings ACV Matched Excluded from TAM\n    comment: Total CAD annual contract value in millions for matched customers excluded from TAM.\n    synonyms:\n      - excluded from TAM ACV\n      - out of TAM ACV\n      - \"Fct Tam Buildings ACV Matched: Excluded from TAM\"\n      - Acv Match Out Of Tam\n    format:\n      type: currency\n      currency_code: CAD\n  - name: acv_match_in_tam\n    expr: \"COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'Matched: In TAM'), 0)\"\n    display_name: Fct Tam Buildings ACV Matched In TAM\n    comment: CAD annual contract value in millions for customers matched in TAM.\n    synonyms:\n      - in TAM ACV\n      - \"Fct Tam Buildings ACV Matched: In TAM\"\n      - Acv Match In Tam\n    format:\n      type: currency\n      currency_code: CAD\n  - name: acv_match_in_tam_plus_no_data\n    expr: \"COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE (customer_match_status <> 'Not a Customer' OR customer_match_status IS NULL) AND ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)\"\n    display_name: Fct Tam Buildings ACV Matched In TAM Plus Customers Included\n    comment: CAD ACV in millions for customer sites included in extended TAM.\n    synonyms:\n      - extended TAM ACV\n      - \"Fct Tam Buildings ACV Matched: In TAM Plus Customers Included\"\n      - Acv Match In Tam Plus No Data\n    format:\n      type: currency\n      currency_code: CAD\n  - name: acv_no_market_data\n    expr: COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'No Market ID'), 0)\n    display_name: Fct Tam Buildings ACV No Market ID\n    comment: CAD ACV in millions for customers without a market identifier.\n    synonyms:\n      - no market ID ACV\n      - Acv No Market Data\n    format:\n      type: currency\n      currency_code: CAD\n  - name: acv_no_market_data_excluded\n    expr: COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'No Market ID' AND lower(include_in_tam_customer_estimate) = 'no'), 0)\n    display_name: Fct Tam Buildings ACV No Market ID Customers Excluded\n    comment: CAD ACV in millions for excluded customers without a market identifier.\n    synonyms:\n      - excluded no market ID ACV\n      - Acv No Market Data Excluded\n    format:\n      type: currency\n      currency_code: CAD\n  - name: acv_no_match_has_market_data\n    expr: \"COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'Not Matched: Market Data Not Pulled (Yet)'), 0)\"\n    display_name: Fct Tam Buildings ACV Not Matched Market Data Not Pulled Yet\n    comment: CAD ACV in millions for customer sites awaiting market-data retrieval.\n    synonyms:\n      - market data not pulled ACV\n      - \"Fct Tam Buildings ACV Not Matched: Market Data Not Pulled (Yet)\"\n      - Acv No Match Has Market Data\n    format:\n      type: currency\n      currency_code: CAD\n  - name: customer_acv_outside_geographic_tam\n    expr: COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'Outside Geographic TAM'), 0)\n    display_name: Fct Tam Buildings ACV Outside Geographic TAM\n    comment: CAD ACV in millions outside the geographic TAM.\n    synonyms:\n      - outside geography ACV\n      - Customer Acv Outside Geographic Tam\n    format:\n      type: currency\n      currency_code: CAD\n  - name: acv_market_data_subtotal\n    expr: \"COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status IN ('Matched: In TAM', 'Matched: Excluded by Property Type', 'Matched: Excluded by Building Not Built', 'Matched: Excluded < 100k Sq Ft', 'Outside Geographic TAM', 'Matched: Excluded < 20k Sq Ft')), 0)\"\n    display_name: Fct Tam Buildings ACV Total Customers with Market Data\n    comment: CAD ACV in millions for customers whose market data has been classified.\n    synonyms:\n      - market data ACV subtotal\n      - Acv Market Data Subtotal\n    format:\n      type: currency\n      currency_code: CAD\n  - name: accounts_count\n    expr: COALESCE(COUNT(DISTINCT account), 0)\n    display_name: Fct Tam Buildings Account Count\n    comment: Distinct count of account decision-makers in the result set.\n    synonyms:\n      - distinct accounts\n      - account decision makers\n      - Accounts Count\n      - Accounts\n    format:\n      type: number\n  - name: avg_acct_sf_per_building_customer_adjusted\n    expr: |-\n      COALESCE(SUM(COALESCE(building_sf_occupied_by_account, customer_sf_estimate)) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)\n      / NULLIF(COUNT(DISTINCT property_id) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)\n    display_name: Fct Tam Buildings Average Building Size (Sq Ft)\n    comment: Average eligible TAM building size using occupied SF with customer estimate fallback.\n    synonyms:\n      - average TAM building size\n      - average building SF\n      - Avg Acct Sf Per Building Customer Adjusted\n      - Acct Sf Per Building Customer Adjusted\n    format:\n      type: number\n  - name: bridge_acv_crit_account_scale\n    expr: \"COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE (customer_match_status = 'Matched: In TAM' AND NOT (coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)) OR customer_match_status = 'Matched: Excluded < 100k Sq Ft' OR (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) < square_footage_threshold) OR customer_match_status NOT IN ('Not a Customer', 'Matched: In TAM', 'Matched: Excluded < 100k Sq Ft', 'No Market ID', 'Outside Geographic TAM', 'Matched: Excluded < 20k Sq Ft', 'Matched: Excluded by Property Type', 'Matched: Excluded by Building Not Built')), 0)\"\n    display_name: Fct Tam Buildings Bridge ACV Account Scale ($MM)\n    comment: Selected-currency ACV in millions for account-scale-related bridge exclusions.\n    synonyms:\n      - account scale bridge ACV\n      - \"Fct Tam Buildings Bridge ACV: + Account Scale ($MM)\"\n      - Bridge Acv Crit Account Scale\n    format:\n      type: number\n  - name: bridge_acv_excl_not_built\n    expr: \"COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE customer_match_status = 'Matched: Excluded by Building Not Built'), 0)\"\n    display_name: Fct Tam Buildings Bridge ACV Excluded Building Not Built ($MM)\n    comment: Selected-currency bridge ACV in millions excluded because buildings are not built.\n    synonyms:\n      - not built bridge ACV\n      - \"Fct Tam Buildings Bridge ACV: + Excluded - Building Not Built ($MM)\"\n      - Bridge Acv Excl Not Built\n    format:\n      type: number\n  - name: bridge_acv_excl_20k\n    expr: \"COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE customer_match_status = 'Matched: Excluded < 20k Sq Ft'), 0)\"\n    display_name: Fct Tam Buildings Bridge ACV Excluded Less Than 20k ($MM)\n    comment: Selected-currency bridge ACV in millions excluded below 20k square feet.\n    synonyms:\n      - under 20k bridge ACV\n      - \"Fct Tam Buildings Bridge ACV: + Excluded < 20k ($MM)\"\n      - Bridge Acv Excl 20k\n    format:\n      type: number\n  - name: bridge_acv_excl_size\n    expr: \"COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE (customer_match_status = 'Matched: In TAM' AND NOT (coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)) OR customer_match_status = 'Matched: Excluded < 100k Sq Ft'), 0)\"\n    display_name: Fct Tam Buildings Bridge ACV Excluded Below Threshold ($MM)\n    comment: Selected-currency bridge ACV in millions failing the active size threshold.\n    synonyms:\n      - size exclusion bridge ACV\n      - \"Fct Tam Buildings Bridge ACV: + Excluded < Threshold (Size) ($MM)\"\n      - Bridge Acv Excl Size\n    format:\n      type: number\n  - name: bridge_acv_not_pulled\n    expr: \"COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE customer_match_status NOT IN ('Not a Customer', 'Matched: In TAM', 'Matched: Excluded < 100k Sq Ft', 'No Market ID', 'Outside Geographic TAM', 'Matched: Excluded < 20k Sq Ft', 'Matched: Excluded by Property Type', 'Matched: Excluded by Building Not Built')), 0)\"\n    display_name: Fct Tam Buildings Bridge ACV Market Data Not Pulled ($MM)\n    comment: Selected-currency bridge ACV in millions in the fallback market-data bucket.\n    synonyms:\n      - not pulled bridge ACV\n      - \"Fct Tam Buildings Bridge ACV: + Market Data Not Pulled ($MM)\"\n      - Bridge Acv Not Pulled\n    format:\n      type: number\n  - name: bridge_acv_no_market_excl\n    expr: COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) < square_footage_threshold), 0)\n    display_name: Fct Tam Buildings Bridge ACV No Market ID Excluded ($MM)\n    comment: Selected-currency ACV in millions for No Market ID customers below the active threshold.\n    synonyms:\n      - excluded no market ID bridge ACV\n      - \"Fct Tam Buildings Bridge ACV: + No Market ID Excluded ($MM)\"\n      - Bridge Acv No Market Excl\n    format:\n      type: number\n  - name: bridge_acv_outside_geo\n    expr: COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE customer_match_status = 'Outside Geographic TAM'), 0)\n    display_name: Fct Tam Buildings Bridge ACV Outside Geographic TAM ($MM)\n    comment: Selected-currency bridge ACV in millions outside geographic TAM.\n    synonyms:\n      - outside geography bridge ACV\n      - \"Fct Tam Buildings Bridge ACV: + Outside Geographic TAM ($MM)\"\n      - Bridge Acv Outside Geo\n    format:\n      type: number\n  - name: bridge_acv_residential\n    expr: \"COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE customer_match_status = 'Matched: Excluded by Property Type'), 0)\"\n    display_name: Fct Tam Buildings Bridge ACV Residential ($MM)\n    comment: Selected-currency bridge ACV in millions excluded for residential property type.\n    synonyms:\n      - residential bridge ACV\n      - \"Fct Tam Buildings Bridge ACV: + Residential ($MM)\"\n      - Bridge Acv Residential\n    format:\n      type: number\n  - name: bridge_acv_tam_exclusion\n    expr: \"COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE customer_match_status <> 'Not a Customer' AND customer_match_status <> 'Outside Geographic TAM' AND NOT ((customer_match_status = 'Matched: In TAM' AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold) OR (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold))), 0)\"\n    display_name: Fct Tam Buildings Bridge ACV TAM Exclusion ($MM)\n    comment: Selected-currency ACV in millions excluded by building type, size, or unavailable market data.\n    synonyms:\n      - TAM exclusion bridge ACV\n      - \"Fct Tam Buildings Bridge ACV: + TAM Exclusion (Building Type or Size) ($MM)\"\n      - Bridge Acv Tam Exclusion\n    format:\n      type: number\n  - name: bridge_acv_in_tam\n    expr: \"COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE (customer_match_status = 'Matched: In TAM' AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold) OR (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold)), 0)\"\n    display_name: Fct Tam Buildings Bridge ACV Customers In TAM ($MM)\n    comment: Selected-currency ACV in millions for active customers inside TAM.\n    synonyms:\n      - in TAM bridge ACV\n      - \"Fct Tam Buildings Bridge ACV: Customers In TAM ($MM)\"\n      - Bridge Acv In Tam\n    format:\n      type: number\n  - name: bridge_acv_total\n    expr: COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE customer_match_status <> 'Not a Customer'), 0)\n    display_name: Fct Tam Buildings Bridge ACV Total Active Customers ($MM)\n    comment: Selected-currency ACV in millions for all active customer bridge buckets.\n    synonyms:\n      - total bridge ACV\n      - active customer ACV\n      - \"Fct Tam Buildings Bridge ACV: Total Active Customers ($MM)\"\n      - Bridge Acv Total\n      - Bridge Acv\n    format:\n      type: number\n  - name: bridge_customers_crit_account_scale\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE (customer_match_status = 'Matched: In TAM' AND NOT (coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)) OR customer_match_status = 'Matched: Excluded < 100k Sq Ft' OR (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) < square_footage_threshold) OR customer_match_status NOT IN ('Not a Customer', 'Matched: In TAM', 'Matched: Excluded < 100k Sq Ft', 'No Market ID', 'Outside Geographic TAM', 'Matched: Excluded < 20k Sq Ft', 'Matched: Excluded by Property Type', 'Matched: Excluded by Building Not Built')), 0)\"\n    display_name: Fct Tam Buildings Bridge Account Scale\n    comment: Distinct customer sites in account-scale-related bridge exclusions.\n    synonyms:\n      - account scale bridge customers\n      - \"Fct Tam Buildings Bridge: + Account Scale\"\n      - Bridge Customers Crit Account Scale\n    format:\n      type: number\n  - name: bridge_customers_excl_not_built\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Matched: Excluded by Building Not Built'), 0)\"\n    display_name: Fct Tam Buildings Bridge Excluded Building Not Built\n    comment: Distinct customer sites excluded because buildings are not built.\n    synonyms:\n      - not built bridge customers\n      - \"Fct Tam Buildings Bridge: + Excluded - Building Not Built\"\n      - Bridge Customers Excl Not Built\n    format:\n      type: number\n  - name: bridge_customers_excl_20k\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Matched: Excluded < 20k Sq Ft'), 0)\"\n    display_name: Fct Tam Buildings Bridge Excluded Less Than 20k\n    comment: Distinct customer sites excluded below 20k square feet.\n    synonyms:\n      - under 20k bridge customers\n      - \"Fct Tam Buildings Bridge: + Excluded < 20k\"\n      - Bridge Customers Excl 20k\n    format:\n      type: number\n  - name: bridge_customers_excl_size\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE (customer_match_status = 'Matched: In TAM' AND NOT (coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)) OR customer_match_status = 'Matched: Excluded < 100k Sq Ft'), 0)\"\n    display_name: Fct Tam Buildings Bridge Excluded Below Threshold\n    comment: Distinct matched customer sites below the selected account square-footage threshold.\n    synonyms:\n      - size exclusion bridge customers\n      - \"Fct Tam Buildings Bridge: + Excluded < Threshold (Size)\"\n      - Bridge Customers Excl Size\n    format:\n      type: number\n  - name: bridge_customers_not_pulled\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status NOT IN ('Not a Customer', 'Matched: In TAM', 'Matched: Excluded < 100k Sq Ft', 'No Market ID', 'Outside Geographic TAM', 'Matched: Excluded < 20k Sq Ft', 'Matched: Excluded by Property Type', 'Matched: Excluded by Building Not Built')), 0)\"\n    display_name: Fct Tam Buildings Bridge Market Data Not Pulled\n    comment: Distinct active customer sites in the fallback market-data bucket.\n    synonyms:\n      - not pulled bridge customers\n      - \"Fct Tam Buildings Bridge: + Market Data Not Pulled\"\n      - Bridge Customers Not Pulled\n    format:\n      type: number\n  - name: bridge_customers_no_market_excl\n    expr: COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) < square_footage_threshold), 0)\n    display_name: Fct Tam Buildings Bridge No Market ID Excluded\n    comment: Distinct No Market ID customer sites below the selected threshold.\n    synonyms:\n      - excluded no market ID customers\n      - \"Fct Tam Buildings Bridge: + No Market ID Excluded\"\n      - Bridge Customers No Market Excl\n    format:\n      type: number\n  - name: bridge_customers_outside_geo\n    expr: COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Outside Geographic TAM'), 0)\n    display_name: Fct Tam Buildings Bridge Outside Geographic TAM\n    comment: Distinct active customer sites outside geographic TAM.\n    synonyms:\n      - outside geography bridge customers\n      - \"Fct Tam Buildings Bridge: + Outside Geographic TAM\"\n      - Bridge Customers Outside Geo\n    format:\n      type: number\n  - name: bridge_customers_residential\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Matched: Excluded by Property Type'), 0)\"\n    display_name: Fct Tam Buildings Bridge Residential\n    comment: Distinct customer sites excluded for residential property type.\n    synonyms:\n      - residential bridge customers\n      - \"Fct Tam Buildings Bridge: + Residential\"\n      - Bridge Customers Residential\n    format:\n      type: number\n  - name: bridge_customers_tam_exclusion\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status <> 'Not a Customer' AND customer_match_status <> 'Outside Geographic TAM' AND NOT ((customer_match_status = 'Matched: In TAM' AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold) OR (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold))), 0)\"\n    display_name: Fct Tam Buildings Bridge TAM Exclusion\n    comment: Distinct customer sites excluded by building type, size, or unavailable market data.\n    synonyms:\n      - TAM exclusion bridge customers\n      - \"Fct Tam Buildings Bridge: + TAM Exclusion (Building Type or Size)\"\n      - Bridge Customers Tam Exclusion\n    format:\n      type: number\n  - name: bridge_customers_in_tam\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE (customer_match_status = 'Matched: In TAM' AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold) OR (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold)), 0)\"\n    display_name: Fct Tam Buildings Bridge Customers In TAM\n    comment: Distinct active customer sites inside TAM at the selected threshold.\n    synonyms:\n      - in TAM bridge customers\n      - \"Fct Tam Buildings Bridge: Customers In TAM\"\n      - Bridge Customers In Tam\n    format:\n      type: number\n  - name: bridge_customers_total\n    expr: COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status <> 'Not a Customer'), 0)\n    display_name: Fct Tam Buildings Bridge Total Active Customers\n    comment: Distinct active customer sites across all non-null bridge buckets.\n    synonyms:\n      - total bridge customers\n      - active customer sites\n      - \"Fct Tam Buildings Bridge: Total Active Customers\"\n      - Bridge Customers Total\n      - Bridge Customers\n    format:\n      type: number\n  - name: building_penetration_customer_adjusted\n    expr: |-\n      COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE (customer_match_status <> 'Not a Customer' OR customer_match_status IS NULL) AND ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)\n      / NULLIF(COUNT(DISTINCT property_id) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)\n    display_name: Fct Tam Buildings Building Penetration %\n    comment: Share of eligible TAM buildings currently serviced by GDI.\n    synonyms:\n      - building penetration\n      - customer site penetration\n      - Building Penetration Customer Adjusted\n    format:\n      type: percentage\n  - name: building_sf_occupied_by_account_adjusted_sum\n    expr: \"COALESCE(SUM(COALESCE(building_sf_occupied_by_account, customer_sf_estimate)) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)\"\n    display_name: Fct Tam Buildings Building SF in TAM\n    comment: Total eligible square footage using occupied SF with customer estimate fallback.\n    synonyms:\n      - TAM building SF\n      - occupied square footage\n      - Building Sf Occupied By Account Adjusted Sum\n      - Building Sf Occupied By Account Adjusted\n    format:\n      type: number\n  - name: rba_sum\n    expr: COALESCE(SUM(building_rba), 0)\n    display_name: Fct Tam Buildings Building Total SF\n    comment: Total rentable building area in square feet.\n    synonyms:\n      - total RBA\n      - building square feet\n      - Rba Sum\n      - Rba\n    format:\n      type: number\n  - name: buildings_count_customer_adjusted\n    expr: \"COALESCE(COUNT(DISTINCT property_id) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)\"\n    display_name: Fct Tam Buildings Buildings in TAM\n    comment: Distinct eligible TAM buildings at the selected threshold.\n    synonyms:\n      - TAM building count\n      - eligible buildings\n      - Buildings Count Customer Adjusted\n      - Buildings Customer Adjusted\n    format:\n      type: number\n  - name: count\n    expr: COALESCE(COUNT(*), 0)\n    display_name: Fct Tam Buildings Count\n    comment: Count of source building rows.\n    synonyms:\n      - row count\n      - building records\n    format:\n      type: number\n  - name: customer_acv_year_sum_outside_tam\n    expr: \"COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END) FILTER (WHERE NOT ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)\"\n    display_name: Fct Tam Buildings Customer Annual Contract Value Outside TAM\n    comment: Annualized customer contract value outside extended TAM in the selected currency.\n    synonyms:\n      - outside TAM annualized revenue\n      - outside TAM ACV\n      - Customer Acv Year Sum Outside Tam\n      - Customer Acv Year Outside Tam\n    format:\n      type: currency\n      currency_code: CAD\n  - name: customer_gross_margin_customer_adjusted\n    expr: |-\n      COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_gross_profit_usd ELSE _mv_customer_gross_profit_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)\n      / NULLIF(COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_revenue_usd ELSE _mv_customer_revenue_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0), 0)\n    display_name: Fct Tam Buildings Customer Gross Margin\n    comment: Gross profit divided by customer revenue for customer business in extended TAM.\n    synonyms:\n      - gross margin\n      - customer margin\n      - Customer Gross Margin Customer Adjusted\n    format:\n      type: percentage\n  - name: customer_gross_profit_sum_customer_adjusted\n    expr: \"COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_gross_profit_usd ELSE _mv_customer_gross_profit_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)\"\n    display_name: Fct Tam Buildings Customer Gross Profit\n    comment: Customer gross profit across extended TAM in the selected currency.\n    synonyms:\n      - gross profit\n      - customer GP\n      - Customer Gross Profit Sum Customer Adjusted\n      - Customer Gross Profit Customer Adjusted\n    format:\n      type: currency\n      currency_code: CAD\n  - name: customer_revenue_sum_customer_adjusted\n    expr: \"COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_revenue_usd ELSE _mv_customer_revenue_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)\"\n    display_name: Fct Tam Buildings Customer Revenue\n    comment: Customer revenue across extended TAM in the selected currency.\n    synonyms:\n      - actual customer revenue\n      - in-scope customer revenue\n      - Customer Revenue Sum Customer Adjusted\n      - Customer Revenue Customer Adjusted\n    format:\n      type: currency\n      currency_code: CAD\n  - name: customers_site_count_outside_tam\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE NOT ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)\"\n    display_name: Fct Tam Buildings Customer Sites Outside TAM Count\n    comment: Distinct customer sites outside extended TAM.\n    synonyms:\n      - outside TAM customer sites\n      - excluded customer sites\n      - Customers Site Count Outside Tam\n      - Customers Site Outside Tam\n    format:\n      type: number\n  - name: max_rate\n    expr: COALESCE(PERCENTILE_APPROX(CASE WHEN lower(currency) = 'usd' THEN _mv_rate_usd ELSE _mv_rate_cad END, 0.5), 0)\n    display_name: Fct Tam Buildings Facility Type Estimated Revenue Per Sq Ft\n    comment: Median facility-type revenue rate per square foot in the selected currency.\n    synonyms:\n      - median rate\n      - revenue rate per square foot\n      - Fct Tam Buildings Facility Type Estimated Revenue $ / Sq Ft\n      - Max Rate\n      - Rate\n    format:\n      type: currency\n      currency_code: CAD\n  - name: customer_acv_year_sum_customer_adjusted\n    expr: \"COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)\"\n    display_name: Fct Tam Buildings GDI Annualized Revenue ($)\n    comment: Annualized customer contract value within extended TAM in the selected currency.\n    synonyms:\n      - GDI annualized revenue\n      - in-TAM ACV\n      - Customer Acv Year Sum Customer Adjusted\n      - Customer Acv Year Customer Adjusted\n    format:\n      type: currency\n      currency_code: CAD\n  - name: customers_site_count_adjusted\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE (customer_match_status <> 'Not a Customer' OR customer_match_status IS NULL) AND ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)\"\n    display_name: Fct Tam Buildings GDI Customer Sites\n    comment: Distinct customer sites included in extended TAM.\n    synonyms:\n      - GDI customer sites\n      - customer buildings in TAM\n      - Customers Site Count Adjusted\n      - Customers Site Adjusted\n    format:\n      type: number\n  - name: match_out_of_tam_building_size\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Matched: Excluded < 100k Sq Ft'), 0)\"\n    display_name: Fct Tam Buildings Matched Excluded Less Than 100k Sq Ft\n    comment: Distinct customer sites with the fixed legacy size-exclusion status.\n    synonyms:\n      - matched size exclusions\n      - \"Fct Tam Buildings Matched: Excluded < 100k Sq Ft\"\n      - Match Out Of Tam Building Size\n    format:\n      type: number\n  - name: match_out_of_tam_less_than_20k\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Matched: Excluded < 20k Sq Ft'), 0)\"\n    display_name: Fct Tam Buildings Matched Excluded Less Than 20k Sq Ft\n    comment: Distinct matched customer sites excluded below 20k square feet.\n    synonyms:\n      - matched under 20k exclusions\n      - \"Fct Tam Buildings Matched: Excluded < 20k Sq Ft\"\n      - Match Out Of Tam Less Than 20k\n    format:\n      type: number\n  - name: match_out_of_tam_not_built\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Matched: Excluded by Building Not Built'), 0)\"\n    display_name: Fct Tam Buildings Matched Excluded by Building Not Built\n    comment: Distinct matched customer sites excluded because buildings are not built.\n    synonyms:\n      - matched not built exclusions\n      - \"Fct Tam Buildings Matched: Excluded by Building Not Built\"\n      - Match Out Of Tam Not Built\n    format:\n      type: number\n  - name: match_out_of_tam_property_type\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Matched: Excluded by Property Type'), 0)\"\n    display_name: Fct Tam Buildings Matched Excluded by Property Type\n    comment: Distinct matched customer sites excluded by property type.\n    synonyms:\n      - matched residential exclusions\n      - \"Fct Tam Buildings Matched: Excluded by Property Type\"\n      - Match Out Of Tam Property Type\n    format:\n      type: number\n  - name: match_out_of_tam\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status IN ('Matched: Excluded by Building Not Built', 'Matched: Excluded < 20k Sq Ft', 'Matched: Excluded by Property Type', 'Matched: Excluded < 100k Sq Ft')), 0)\"\n    display_name: Fct Tam Buildings Matched Excluded from TAM\n    comment: Distinct matched customer sites excluded from TAM.\n    synonyms:\n      - matched out of TAM\n      - matched exclusions\n      - \"Fct Tam Buildings Matched: Excluded from TAM\"\n      - Match Out Of Tam\n    format:\n      type: number\n  - name: match_in_tam\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Matched: In TAM'), 0)\"\n    display_name: Fct Tam Buildings Matched In TAM\n    comment: Distinct customer sites with Matched In TAM status.\n    synonyms:\n      - matched TAM customers\n      - \"Fct Tam Buildings Matched: In TAM\"\n      - Match In Tam\n    format:\n      type: number\n  - name: match_in_tam_plus_no_data\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE (customer_match_status <> 'Not a Customer' OR customer_match_status IS NULL) AND ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)\"\n    display_name: Fct Tam Buildings Matched In TAM Plus Customers Included\n    comment: Distinct customer sites included in extended TAM, including eligible No Market ID sites.\n    synonyms:\n      - extended TAM customer sites\n      - \"Fct Tam Buildings Matched: In TAM Plus Customers Included\"\n      - Match In Tam Plus No Data\n    format:\n      type: number\n  - name: no_market_data\n    expr: COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'No Market ID'), 0)\n    display_name: Fct Tam Buildings No Market ID\n    comment: Distinct customer sites without a market identifier.\n    synonyms:\n      - no market ID customers\n      - No Market Data\n    format:\n      type: number\n  - name: no_market_data_excluded\n    expr: COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'No Market ID' AND lower(include_in_tam_customer_estimate) = 'no'), 0)\n    display_name: Fct Tam Buildings No Market ID Customers Excluded\n    comment: Distinct excluded customer sites without a market identifier.\n    synonyms:\n      - excluded no market ID sites\n      - No Market Data Excluded\n    format:\n      type: number\n  - name: no_market_data_included\n    expr: COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'No Market ID' AND lower(include_in_tam_customer_estimate) = 'yes'), 0)\n    display_name: Fct Tam Buildings No Market ID Customers Included\n    comment: Distinct included customer sites without a market identifier.\n    synonyms:\n      - included no market ID sites\n      - No Market Data Included\n    format:\n      type: number\n  - name: no_match_has_market_data\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Not Matched: Market Data Not Pulled (Yet)'), 0)\"\n    display_name: Fct Tam Buildings Not Matched Market Data Not Pulled Yet\n    comment: Distinct customer sites awaiting market-data retrieval.\n    synonyms:\n      - market data not pulled customers\n      - \"Fct Tam Buildings Not Matched: Market Data Not Pulled (Yet)\"\n      - No Match Has Market Data\n    format:\n      type: number\n  - name: customer_outside_geographic_tam\n    expr: COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Outside Geographic TAM'), 0)\n    display_name: Fct Tam Buildings Outside Geographic TAM\n    comment: Distinct customer sites outside geographic TAM.\n    synonyms:\n      - outside geographic TAM customers\n      - Customer Outside Geographic Tam\n    format:\n      type: number\n  - name: revenue_share_customer_adjusted\n    expr: |-\n      COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)\n      / NULLIF(COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_revenue_estimate_usd ELSE _mv_revenue_estimate_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0), 0)\n    display_name: Fct Tam Buildings Revenue Share %\n    comment: GDI annualized customer revenue divided by estimated TAM revenue.\n    synonyms:\n      - revenue share\n      - TAM market share\n      - Revenue Share Customer Adjusted\n    format:\n      type: percentage\n  - name: revenue_estimate_sum_customer_adjusted\n    expr: \"COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_revenue_estimate_usd ELSE _mv_revenue_estimate_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)\"\n    display_name: Fct Tam Buildings TAM Revenue Estimate ($)\n    comment: Estimated revenue opportunity across extended TAM in the selected currency.\n    synonyms:\n      - TAM revenue estimate\n      - revenue opportunity\n      - Revenue Estimate Sum Customer Adjusted\n      - Revenue Estimate Customer Adjusted\n    format:\n      type: currency\n      currency_code: CAD\n  - name: market_data_subtotal\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status IN ('Matched: In TAM', 'Matched: Excluded by Property Type', 'Matched: Excluded by Building Not Built', 'Matched: Excluded < 100k Sq Ft', 'Outside Geographic TAM', 'Matched: Excluded < 20k Sq Ft')), 0)\"\n    display_name: Fct Tam Buildings Total Customers with Market Data\n    comment: Distinct customer sites whose market data has been classified.\n    synonyms:\n      - market data customer subtotal\n      - Market Data Subtotal\n    format:\n      type: number\n  - name: building_penetration\n    expr: |-\n      COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE (customer_match_status <> 'Not a Customer' OR customer_match_status IS NULL) AND ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)\n      / NULLIF(COUNT(DISTINCT property_id) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)\n    display_name: Building Penetration\n    comment: Compatibility KPI using the adjusted penetration expression returned by compiled benchmark SQL.\n    synonyms:\n      - legacy building penetration\n    format:\n      type: percentage\n  - name: buildings_count\n    expr: \"COALESCE(COUNT(DISTINCT property_id) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)\"\n    display_name: Number of Buildings in TAM\n    comment: Compatibility building count using the expression returned by compiled benchmark SQL.\n    synonyms:\n      - buildings in TAM\n      - legacy building count\n      - Buildings Count\n      - Buildings\n    format:\n      type: number\n  - name: buildings_count_coverage_adjusted\n    expr: \"COALESCE(COUNT(DISTINCT property_id) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)\"\n    display_name: Buildings Count Coverage Adjusted\n    comment: Benchmark compatibility count; compiled SQL supplies the customer-adjusted eligible-building population.\n    synonyms:\n      - coverage adjusted buildings\n      - Buildings Coverage Adjusted\n    format:\n      type: number\n  - name: customers_site_count\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE (customer_match_status <> 'Not a Customer' OR customer_match_status IS NULL) AND ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)\"\n    display_name: Number of Customer Buildings in TAM\n    comment: Compatibility customer-site count using the expression returned by compiled benchmark SQL.\n    synonyms:\n      - customer buildings\n      - legacy customer site count\n      - Customers Site Count\n      - Customers Site\n    format:\n      type: number\n  - name: customer_sites_outside_tam\n    expr: \"COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status NOT IN ('Not a Customer', 'Matched: In TAM') AND NOT ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)\"\n    display_name: Customer Sites Outside TAM\n    comment: Dashboard custom measure counting distinct out-of-scope customer sites after status exclusions.\n    synonyms:\n      - outside TAM sites\n    format:\n      type: number\n  - name: tam_revenue_estimate_mms\n    expr: \"COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_revenue_estimate_usd ELSE _mv_revenue_estimate_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0) / 1000000.0\"\n    display_name: TAM Revenue Estimate ($MMs)\n    comment: Estimated extended-TAM revenue in millions in the selected currency.\n    synonyms:\n      - TAM revenue millions\n      - revenue opportunity millions\n      - Tam Revenue Estimate Mms\n    format:\n      type: number\n  - name: territory_index\n    expr: COALESCE(COUNT(DISTINCT territory), 0)\n    display_name: Territory Index\n    comment: Distinct count of map-ready territory labels.\n    synonyms:\n      - territory count\n      - map territory count\n    format:\n      type: number\ncomment: Migrated Looker explore gdi.tam_buildings\n"
+  },
+  {
+    "description": "Presentation-only row-number calculation used by the territory-list tile. It depends on dashboard result ordering and therefore is not a governed semantic measure. Prefer measure territory_index (COUNT DISTINCT territory) for governed counts.",
+    "fieldMappings": [],
+    "grain": "Dashboard result row",
+    "name": "territory_index_1",
+    "schema": "semantic_migration_dev",
+    "type": "dashboard_calc"
+  }
+]

@@ -1,10 +1,10 @@
 #!/usr/bin/env npx tsx
 /**
- * Run Looker↔Databricks parity for a migrations/<table> draft.
- * Writes harness/last-run.json for the local Cursor fix loop.
+ * Run Looker↔Databricks parity for migrations/<table>/draft.
+ * Writes harness/last-run.json (filesystem-only — no job DB).
  *
  *   npm run cli:parity -- <catalog.schema.table>
- *   npm run cli:parity -- --job <jobId>
+ *   npm run cli:parity -- <catalog.schema.table> --skip-deploy
  */
 import dotenv from "dotenv";
 import fs from "fs";
@@ -13,26 +13,26 @@ import path from "path";
 dotenv.config({ path: path.resolve(process.cwd(), ".envs") });
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
-function argValue(args: string[], flag: string): string | undefined {
-  const i = args.indexOf(flag);
-  return i >= 0 ? args[i + 1] : undefined;
-}
-
 async function main() {
   const args = process.argv.slice(2);
-  const jobIdArg = argValue(args, "--job");
-  const tableKeyArg = args.find((a) => !a.startsWith("--") && a.includes("."));
+  const tableKey = args.find((a) => !a.startsWith("--") && a.includes("."));
+  if (!tableKey) {
+    console.error(
+      "Usage: npm run cli:parity -- <catalog.schema.table> [--skip-deploy]"
+    );
+    process.exit(1);
+  }
 
-  const {
-    migrationDir,
-    readDraftAssets,
-    readParityConfig,
-  } = await import("../../lib/migration/repo-artifacts");
-  const { getJob } = await import("../../lib/migration/jobs");
-  const { buildTestCases } = await import("../../lib/migration/test-cases");
-  const { runParityTests, deployAssetsToDev } = await import(
+  const { migrationDir, readDraftAssets, readParityConfig } = await import(
+    "../../lib/migration/repo-artifacts"
+  );
+  const { localJobFromTable, readInventory } = await import(
+    "../../lib/migration/local-context"
+  );
+  const { deployAssetsToDev, runParityTests } = await import(
     "../../lib/migration/worker"
   );
+  const { buildTestCases } = await import("../../lib/migration/test-cases");
   const { emptyOverrides } = await import(
     "../../lib/migration/reconciliation-overrides"
   );
@@ -40,39 +40,10 @@ async function main() {
     "../../lib/migration/deploy-normalize"
   );
 
-  let tableKey = tableKeyArg;
-  let job = jobIdArg ? await getJob(jobIdArg) : null;
-
-  if (!tableKey && job) {
-    tableKey = `${job.catalog}.${job.sourceSchema}.${job.sourceTable}`;
-  }
-  if (!tableKey) {
-    console.error(
-      "Usage: npm run cli:parity -- <catalog.schema.table> | --job <jobId>"
-    );
-    process.exit(1);
-  }
-
   const cfg = readParityConfig(tableKey);
-  if (!job && cfg.jobId) {
-    job = await getJob(cfg.jobId);
-  }
-  if (!job || job.id.startsWith("cli-parity-")) {
-    // runParityTests persists rows to migration_tests — needs a real job FK.
-    console.error(
-      "[parity] A real migration job id is required (FK to migration_jobs).\n" +
-        "  npm run cli:parity -- --job <jobId>\n" +
-        "  or ensure harness/parity.config.json has jobId from the worker / cli:draft --job"
-    );
-    process.exit(1);
-  }
+  const inventory = readInventory(tableKey);
+  const job = localJobFromTable(tableKey, { inventory });
 
-  const invPath = path.join(migrationDir(tableKey), "inventory.json");
-  if (!fs.existsSync(invPath)) {
-    console.error(`Missing inventory.json under migrations/${tableKey}`);
-    process.exit(1);
-  }
-  const inventory = JSON.parse(fs.readFileSync(invPath, "utf8"));
   let assets = readDraftAssets(tableKey);
   assets = sanitizeGeneratedAssets(
     assets,
@@ -91,46 +62,31 @@ async function main() {
     benchmarks: inventory.benchmarks,
   });
 
-  // Ensure deployed assets match current draft (idempotent CREATE OR REPLACE).
   if (!args.includes("--skip-deploy")) {
-    console.log(`[parity] Redeploying draft to ${cfg.catalog}.${cfg.devSchema}…`);
+    console.log(
+      `[parity] Redeploying draft to ${cfg.catalog}.${cfg.devSchema}…`
+    );
     await deployAssetsToDev(job, assets, inventory);
   }
 
   console.log(`[parity] Running ${testCases.length} test case(s)…`);
-  const { saveIteration } = await import("../../lib/migration/jobs");
-  const iterationId = await saveIteration(job.id, (job.iterationCount ?? 0) + 1, {
-    phase: "test",
-    rationale: "cli:parity local Cursor fix loop",
-    testsRun: testCases.length,
-    testsPassed: 0,
-    testsFailed: 0,
+  const results = await runParityTests({
+    job,
+    inventory,
+    assets,
+    testCases,
+    fieldMapping,
+    overrides: emptyOverrides(),
+    persistResults: false,
   });
-  let results;
-  try {
-    results = await runParityTests({
-      job,
-      inventory,
-      assets,
-      testCases,
-      iterationId,
-      fieldMapping,
-      overrides: emptyOverrides(),
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (/foreign key|migration_tests|migration_jobs/i.test(message)) {
-      console.error(
-        "[parity] DB persistence failed. Ensure the job id exists in migration_jobs."
-      );
-    }
-    throw err;
-  }
 
   const lastRun = {
     ranAt: new Date().toISOString(),
     tableKey,
-    jobId: job.id,
+    status:
+      results.mandatoryFailed > 0 || results.failed > 0
+        ? "needs_fix"
+        : "ready_to_publish",
     summary: {
       passed: results.passed,
       failed: results.failed,
@@ -159,7 +115,10 @@ async function main() {
             `npm run cli:parity -- ${tableKey}`,
             "Append an edge-case note when fixed",
           ]
-        : ["All mandatory checks passed — npm run cli:approve -- <jobId> --confirm"],
+        : [
+            "All mandatory checks passed",
+            `npm run cli:publish -- ${tableKey} --confirm`,
+          ],
   };
 
   const outPath = path.join(migrationDir(tableKey), "harness", "last-run.json");

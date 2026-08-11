@@ -16,6 +16,7 @@ The edge-case library is how the local Cursor model gets better over time.
 2. Fill symptom, Databricks/Looker evidence, root cause, patch, prevention
 3. If the lesson applies to other tables: add under `cases/<area>/` and link from `cases/README.md`
 4. If the bug was in deterministic code (comparator, filter compiler, scaffold, YAML normalizer): add/adjust a golden or unit test in the **same change**
+5. **Commit and open a PR** — nothing auto-pushes `cases/` to main; teammates only learn on `git pull`
 
 ## What not to put in cases/
 

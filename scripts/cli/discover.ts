@@ -1,14 +1,14 @@
 #!/usr/bin/env npx tsx
 /**
  * Headless discovery: find Looker explores/tiles/views that reference a
- * Databricks table and write an editable scope draft for create-job.ts.
+ * Databricks table and write an editable scope draft for cli:draft.
  *
  *   npm run cli:discover -- <catalog>.<schema>.<table> [--no-sql-probe] [--out <file>]
  *
  * Output: tmp-debug/scope-draft.json
  * Every explore/tile has an `include` flag (default true). Edit the draft
- * (flip include to false, adjust warehouseId/devSchema) then run:
- *   npm run cli:create-job -- --scope tmp-debug/scope-draft.json
+ * (flip include to false, adjust warehouseId/devSchema/prodSchema) then run:
+ *   npm run cli:draft -- --scope tmp-debug/scope-draft.json
  */
 import dotenv from "dotenv";
 import fs from "fs";
@@ -53,7 +53,7 @@ async function main() {
 
   const draft = {
     _instructions:
-      "Review before creating a job: set include:false on explores/tiles to exclude, fill databricks.warehouseId (npm run cli:doctor lists warehouses), then run: npm run cli:create-job -- --scope <this file>",
+      "Review before drafting: set include:false on explores/tiles to exclude, fill databricks.warehouseId (npm run cli:doctor lists warehouses), confirm devSchema/prodSchema, then run: npm run cli:draft -- --scope <this file>",
     sourceTable: { catalog, schema, table },
     databricks: {
       host: getConfiguredHost() ?? "SET_ME (DATABRICKS_HOST missing from .envs)",
@@ -77,7 +77,7 @@ async function main() {
     })),
     tiles: result.tiles.map((t) => ({
       include: true,
-      // Full DiscoveredTile payload is preserved — create-job needs it intact.
+      // Full DiscoveredTile payload is preserved for cli:draft.
       ...t,
     })),
     views: result.views,
@@ -100,8 +100,8 @@ async function main() {
     console.log(`  dashboard "${dash}" — ${count} tile(s)`);
   }
   console.log(`\n[discover] Scope draft written to ${outFile}`);
-  console.log("[discover] Next: review/edit the draft (include flags, warehouseId), then:");
-  console.log(`  npm run cli:create-job -- --scope ${outFile}`);
+  console.log("[discover] Next: review/edit the draft (include flags, warehouseId, schemas), then:");
+  console.log(`  npm run cli:draft -- --scope ${outFile}`);
 }
 
 main()

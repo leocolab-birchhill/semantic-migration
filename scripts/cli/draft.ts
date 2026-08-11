@@ -4,8 +4,7 @@
  * migrations/<catalog.schema.table>/draft + harness config.
  *
  *   npm run cli:draft -- --scope tmp-debug/scope-draft.json
- *   npm run cli:draft -- --job <jobId>
- *   npm run cli:draft -- --scope <file> --skip-baseline   # reuse inventory without recapturing Looker
+ *   npm run cli:draft -- --scope <file> --skip-baseline
  *
  * Does NOT call diagnose. Local Cursor owns repair after cli:deploy / cli:parity.
  */
@@ -84,85 +83,44 @@ async function inventoryFromScope(
 async function main() {
   const args = process.argv.slice(2);
   const scopeFile = argValue(args, "--scope");
-  const jobId = argValue(args, "--job");
   const skipBaseline = args.includes("--skip-baseline");
 
-  if (!scopeFile && !jobId) {
+  if (!scopeFile) {
     console.error(
-      "Usage: npm run cli:draft -- --scope <scope-draft.json> | --job <jobId> [--skip-baseline]"
+      "Usage: npm run cli:draft -- --scope <scope-draft.json> [--skip-baseline]"
     );
     process.exit(1);
   }
 
-  let catalog: string;
-  let sourceSchema: string;
-  let sourceTable: string;
-  let devSchema: string;
-  let warehouseId: string;
-  let databricksHost: string;
-  let decimalScale = 2;
-  let timezone = "UTC";
-  let scope: ConfirmedMigrationScope | null = null;
-  let inventory: IntermediateRepresentation;
-  let linkedJobId: string | undefined = jobId;
-
-  if (jobId) {
-    const { getJob } = await import("../../lib/migration/jobs");
-    const job = await getJob(jobId);
-    if (!job) {
-      console.error(`Job not found: ${jobId}`);
-      process.exit(1);
-    }
-    catalog = job.catalog;
-    sourceSchema = job.sourceSchema;
-    sourceTable = job.sourceTable;
-    devSchema = job.devSchema;
-    warehouseId = job.warehouseId;
-    databricksHost = job.databricksHost;
-    decimalScale = job.decimalScale;
-    timezone = job.timezone;
-    scope = job.migrationScope;
-    if (job.inventory?.benchmarks?.length && skipBaseline) {
-      inventory = job.inventory;
-    } else if (scope) {
-      inventory = await inventoryFromScope(scope, timezone, skipBaseline);
-    } else if (job.inventory) {
-      inventory = job.inventory;
-    } else {
-      console.error("Job has no migrationScope or inventory");
-      process.exit(1);
-    }
-  } else {
-    const draft = JSON.parse(
-      fs.readFileSync(path.resolve(scopeFile!), "utf8")
-    ) as ScopeDraft;
-    if (
-      !draft.databricks?.warehouseId ||
-      draft.databricks.warehouseId === "SET_ME"
-    ) {
-      console.error("Set databricks.warehouseId in the scope draft first");
-      process.exit(1);
-    }
-    const explores = (draft.explores ?? []).filter((e) => e.include !== false);
-    const tiles = (draft.tiles ?? [])
-      .filter((t) => t.include !== false)
-      .map(({ include: _i, ...t }) => t as DiscoveredTile);
-    scope = {
-      sourceTable: draft.sourceTable,
-      explores: explores.map((e) => ({ model: e.model, explore: e.explore })),
-      tiles,
-      views: draft.views ?? [],
-    };
-    catalog = draft.sourceTable.catalog;
-    sourceSchema = draft.sourceTable.schema;
-    sourceTable = draft.sourceTable.table;
-    devSchema = draft.databricks.devSchema;
-    warehouseId = draft.databricks.warehouseId;
-    databricksHost = draft.databricks.host;
-    decimalScale = draft.options?.decimalScale ?? 2;
-    timezone = draft.options?.timezone ?? "UTC";
-    inventory = await inventoryFromScope(scope, timezone, skipBaseline);
+  const draft = JSON.parse(
+    fs.readFileSync(path.resolve(scopeFile), "utf8")
+  ) as ScopeDraft;
+  if (
+    !draft.databricks?.warehouseId ||
+    draft.databricks.warehouseId === "SET_ME"
+  ) {
+    console.error("Set databricks.warehouseId in the scope draft first");
+    process.exit(1);
   }
+  const explores = (draft.explores ?? []).filter((e) => e.include !== false);
+  const tiles = (draft.tiles ?? [])
+    .filter((t) => t.include !== false)
+    .map(({ include: _i, ...t }) => t as DiscoveredTile);
+  const scope: ConfirmedMigrationScope = {
+    sourceTable: draft.sourceTable,
+    explores: explores.map((e) => ({ model: e.model, explore: e.explore })),
+    tiles,
+    views: draft.views ?? [],
+  };
+  const catalog = draft.sourceTable.catalog;
+  const sourceSchema = draft.sourceTable.schema;
+  const sourceTable = draft.sourceTable.table;
+  const devSchema = draft.databricks.devSchema;
+  const warehouseId = draft.databricks.warehouseId;
+  const databricksHost = draft.databricks.host;
+  const decimalScale = draft.options?.decimalScale ?? 2;
+  const timezone = draft.options?.timezone ?? "UTC";
+  let inventory = await inventoryFromScope(scope, timezone, skipBaseline);
 
   console.log(
     `[draft] OpenAI one-shot generate for ${catalog}.${sourceSchema}.${sourceTable}…`
@@ -222,7 +180,7 @@ async function main() {
     databricksHost,
     decimalScale,
     timezone,
-    jobId: linkedJobId,
+    prodSchema: draft.databricks.prodSchema ?? "business_semantics",
     scope,
     inventory,
     assets,

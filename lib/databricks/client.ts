@@ -1,11 +1,8 @@
-import { getTenantForHost } from "@/lib/config/tenants";
 import { resolveEnvAuth } from "@/lib/databricks/env-auth";
-import { refreshAccessToken } from "@/lib/databricks/oauth";
 import {
   dollarQuote,
   normalizeMetricViewYaml,
 } from "@/lib/migration/deploy-normalize";
-import { getSession, isSessionAuthenticated } from "@/lib/session";
 
 export class DatabricksApiError extends Error {
   constructor(
@@ -61,40 +58,14 @@ export interface StatementResult {
 }
 
 async function ensureAccessToken(): Promise<{ host: string; token: string }> {
-  // Worker / scripts have no request cookies — try env auth first, then session.
   const envAuth = await resolveEnvAuth();
   if (envAuth) {
     return { host: envAuth.host, token: envAuth.token };
   }
-
-  try {
-    const session = await getSession();
-
-    if (isSessionAuthenticated(session)) {
-      const now = Date.now();
-      if (session.expiresAt && session.expiresAt - 60_000 > now) {
-        return { host: session.host, token: session.accessToken };
-      }
-
-      if (session.refreshToken && session.host) {
-        const tenant = getTenantForHost(session.host);
-        if (tenant) {
-          const tokens = await refreshAccessToken(tenant, session.refreshToken);
-          session.accessToken = tokens.access_token;
-          if (tokens.refresh_token) {
-            session.refreshToken = tokens.refresh_token;
-          }
-          session.expiresAt = Date.now() + tokens.expires_in * 1000;
-          await session.save();
-          return { host: session.host, token: session.accessToken };
-        }
-      }
-    }
-  } catch {
-    // cookies() throws outside a Next.js request (background worker).
-  }
-
-  throw new DatabricksApiError("Not authenticated", 401);
+  throw new DatabricksApiError(
+    "Not authenticated — set DATABRICKS_HOST + CLI profile (npm run auth:databricks) or DATABRICKS_TOKEN",
+    401
+  );
 }
 
 async function databricksFetch(

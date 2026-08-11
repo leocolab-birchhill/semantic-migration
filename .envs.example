@@ -1,5 +1,5 @@
 # ============================================================================
-# viewReconciliationAgent environment template
+# viewReconciliationAgent — skill CLI environment template
 #
 # Copy to `.envs` (gitignored) and fill in values.
 #   cp .envs.example .envs
@@ -7,75 +7,35 @@
 # Legend:
 #   [PER-DEV]  — each teammate sets their own value
 #   [SHARED]   — same value for everyone; get it from the team vault
-#   [OPTIONAL] — only needed for specific setups
 # ============================================================================
 
 # ----------------------------------------------------------------------------
-# Databricks workspace (headless worker + CLI scripts)
+# Databricks workspace
 # ----------------------------------------------------------------------------
-# [PER-DEV] Workspace URL, no trailing slash. Point at YOUR workspace.
+# [PER-DEV] Workspace URL, no trailing slash.
 DATABRICKS_HOST=https://your-workspace.cloud.databricks.com
 
 # [PER-DEV] Recommended: CLI-profile auth. Login once with:
 #   npm run auth:databricks
-# The profile name below must match your `databricks auth login -p <profile>`.
 DATABRICKS_AUTH_MODE=cli
 DATABRICKS_CLI_PROFILE=gdi
 
 # [PER-DEV] [OPTIONAL] Alternative to CLI profile: a personal access token.
-# If set, it takes precedence over the CLI profile.
 # DATABRICKS_TOKEN=
 
 # ----------------------------------------------------------------------------
-# Databricks OAuth app (web UI sign-in only — NOT needed for headless CLI use)
+# Looker (shared API service account)
 # ----------------------------------------------------------------------------
-# [SHARED] [OPTIONAL] Only required if you use the browser UI at localhost:3000.
-# DATABRICKS_TENANT_HOST=https://your-workspace.cloud.databricks.com
-# DATABRICKS_OAUTH_CLIENT_ID=
-# DATABRICKS_OAUTH_CLIENT_SECRET=
-# DATABRICKS_OAUTH_REDIRECT_URI=http://localhost:3000/api/auth/callback
-# SESSION_SECRET=random-string-at-least-32-characters-long
-
-# ----------------------------------------------------------------------------
-# Looker (shared API service account — same for the whole team)
-# ----------------------------------------------------------------------------
-# [SHARED] Looker instance URL, no trailing slash.
 LOOKER_HOST=https://yourcompany.looker.com
-# [SHARED] Looker API 4.0 client credentials (one API user for the team).
 LOOKER_CLIENT_ID=
 LOOKER_CLIENT_SECRET=
 
 # ----------------------------------------------------------------------------
-# OpenAI (reconciliation generate + diagnose)
+# OpenAI (one-shot draft generation)
 # ----------------------------------------------------------------------------
-# [SHARED] Team API key.
 OPENAI_API_KEY=
 
 # ----------------------------------------------------------------------------
-# Job database — choose ONE of the two options below
+# Optional CLI attribution
 # ----------------------------------------------------------------------------
-# Option A [PER-DEV]: local/shared PostgreSQL connection string.
-#   Local Docker: npm run db:up  (docker-compose.yml provides postgres)
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/migrations
-
-# Option B [SHARED] [OPTIONAL]: Databricks Lakebase (leave DATABASE_URL unset).
-# PGHOST=
-# PGPORT=5432
-# PGDATABASE=
-# PGUSER=
-# PGSSLMODE=require
-# AUTH_METHOD=LAKEBASE_OAUTH_V1
-# LAKEBASE_DATABRICKS_HOST=
-# LAKEBASE_DATABRICKS_AUTH_MODE=cli
-# LAKEBASE_DATABRICKS_CLI_PROFILE=bhep
-# LAKEBASE_DATABRICKS_TOKEN=
-
-# ----------------------------------------------------------------------------
-# Worker + CLI attribution
-# ----------------------------------------------------------------------------
-# [PER-DEV] [OPTIONAL] Worker poll interval in ms (default 5000).
-# WORKER_POLL_MS=5000
-
-# [PER-DEV] [OPTIONAL] Email recorded on jobs created via CLI scripts
-# (`scripts/cli/create-job.ts`). Lets `job-status.ts` / the UI filter your jobs.
 # MIGRATION_USER_EMAIL=you@company.com

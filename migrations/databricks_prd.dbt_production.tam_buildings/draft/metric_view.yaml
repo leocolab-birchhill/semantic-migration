@@ -1,0 +1,1129 @@
+version: "1.1"
+source: databricks_prd.semantic_migration_dev.tam_buildings_staging
+parameters:
+  - name: square_footage_threshold
+    data_type: LONG
+    default: 100000
+  - name: currency
+    data_type: STRING
+    default: "'cad'"
+dimensions:
+  - name: consolidated_sector_2
+    expr: NULLIF(TRIM(consolidated_sector_2), '')
+    display_name: Fct Tam Buildings Consolidated Facility Type
+    comment: Top-level facility segmentation used for market sizing.
+    synonyms:
+      - Consolidated Sector 2
+  - name: consolidated_sector_2_sort
+    expr: |-
+      CASE
+        WHEN NULLIF(TRIM((NULLIF(TRIM((NULLIF(TRIM(consolidated_sector_2), ''))), ''))), '') = 'Office' THEN 1
+        WHEN NULLIF(TRIM((NULLIF(TRIM((NULLIF(TRIM(consolidated_sector_2), ''))), ''))), '') = 'Industrial' THEN 2
+        WHEN NULLIF(TRIM((NULLIF(TRIM((NULLIF(TRIM(consolidated_sector_2), ''))), ''))), '') = 'Warehouse/Distribution' THEN 3
+        WHEN NULLIF(TRIM((NULLIF(TRIM((NULLIF(TRIM(consolidated_sector_2), ''))), ''))), '') = 'Manufacturing' THEN 4
+        WHEN NULLIF(TRIM((NULLIF(TRIM((NULLIF(TRIM(consolidated_sector_2), ''))), ''))), '') = 'Retail' THEN 5
+        WHEN NULLIF(TRIM((NULLIF(TRIM((NULLIF(TRIM(consolidated_sector_2), ''))), ''))), '') = 'Specialty' THEN 6
+        WHEN NULLIF(TRIM((NULLIF(TRIM((NULLIF(TRIM(consolidated_sector_2), ''))), ''))), '') = 'Healthcare' THEN 7
+        ELSE 999
+      END
+    display_name: Fct Tam Buildings Consolidated Sector 2 Sort
+    comment: Numeric display order for consolidated facility type.
+    format:
+      type: number
+    synonyms:
+      - Consolidated Sector 2 Sort
+  - name: customer_bridge_bucket
+    expr: |-
+      CASE
+        WHEN customer_match_status = 'Not a Customer' THEN NULL
+        WHEN customer_match_status = 'Matched: In TAM' THEN
+          CASE WHEN coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold
+               THEN '1 In TAM' ELSE '4 Excluded < Threshold (Size)' END
+        WHEN customer_match_status = 'Matched: Excluded < 100k Sq Ft' THEN '4 Excluded < Threshold (Size)'
+        WHEN customer_match_status = 'No Market ID' THEN
+          CASE WHEN coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold
+               THEN '2 In TAM (No Market ID)' ELSE '8 No Market ID - Excluded' END
+        WHEN customer_match_status = 'Outside Geographic TAM' THEN '3 Outside Geographic TAM'
+        WHEN customer_match_status = 'Matched: Excluded < 20k Sq Ft' THEN '5 Excluded < 20k'
+        WHEN customer_match_status = 'Matched: Excluded by Property Type' THEN '6 Residential'
+        WHEN customer_match_status = 'Matched: Excluded by Building Not Built' THEN '7 Excluded - Building Not Built'
+        ELSE '9 Market Data Not Pulled'
+      END
+    display_name: Fct Tam Buildings Customer Bridge Bucket
+    comment: MECE reconciliation bucket for active customers at the selected minimum account square footage.
+    synonyms:
+      - Customer Bridge Bucket
+  - name: geo_label_for_map
+    expr: territory
+    display_name: Fct Tam Buildings Geo Label for Map
+    comment: Map-ready geography label based on territory.
+    synonyms:
+      - map geography
+      - territory label
+      - Geo Label For Map
+  - name: in_extended_tam_scope_flag
+    expr: |-
+      CASE
+        WHEN customer_match_status = 'No Market ID'
+          THEN coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold
+        WHEN customer_match_status IN ('Matched: In TAM', 'Not a Customer')
+          THEN coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold
+        ELSE false
+      END
+    display_name: Fct Tam Buildings In Extended Tam Scope Flag (Yes / No)
+    comment: Indicates eligibility for the extended TAM at the selected account square-footage threshold.
+    synonyms:
+      - In Extended Tam Scope Flag
+  - name: market_passes_sf_threshold
+    expr: |-
+      coalesce(building_rba, 0) >= 20000
+      AND _mv_sf_threshold_basis >= square_footage_threshold
+    display_name: Fct Tam Buildings Market Passes Sf Threshold (Yes / No)
+    comment: Indicates whether a market building passes the building and account-scale thresholds.
+    synonyms:
+      - Market Passes Sf Threshold
+  - name: naics_code
+    expr: RIGHT(naics, 6)
+    display_name: Fct Tam Buildings Naics Code
+    comment: Six-character NAICS code suffix.
+    synonyms:
+      - Naics Code
+  - name: revenue_estimate_selected
+    expr: |-
+      CASE WHEN lower(currency) = 'usd'
+           THEN _mv_revenue_estimate_usd
+           ELSE _mv_revenue_estimate_cad
+      END
+    display_name: Fct Tam Buildings Revenue Estimate Selected
+    comment: Per-row revenue estimate in the selected currency; CAD is the default.
+    format:
+      type: currency
+      currency_code: CAD
+    synonyms:
+      - Revenue Estimate Selected
+  - name: sector_sort
+    expr: |-
+      CASE
+        WHEN sector = 'Office - Multi-Tenant' THEN 1
+        WHEN sector = 'Office - Single-Tenant' THEN 2
+        WHEN sector = 'Flex' THEN 3
+        WHEN sector = 'Hospitals' THEN 4
+        WHEN sector = 'Long Term Care' THEN 5
+        WHEN sector = 'Healthcare - General' THEN 6
+        WHEN sector = 'Manufacturing' THEN 7
+        WHEN sector = 'Warehouse/Distribution' THEN 8
+        WHEN sector = 'Food Processing' THEN 9
+        WHEN sector = 'Data Centers' THEN 10
+        WHEN sector = 'Industrial - General' THEN 11
+        WHEN sector = 'Retail - General' THEN 12
+        WHEN sector = 'Freestanding and Department Stores' THEN 13
+        WHEN sector = 'Shopping Malls' THEN 14
+        WHEN sector = 'Airports' THEN 15
+        WHEN sector = 'Airplane Hangars' THEN 16
+        WHEN sector = 'Schools' THEN 17
+        WHEN sector = 'Sports & Entertainment' THEN 18
+        WHEN sector = 'Hotels & Hospitality' THEN 19
+        WHEN sector = 'Other' THEN 20
+        ELSE 999
+      END
+    display_name: Fct Tam Buildings Sector Sort
+    comment: Numeric display order for detailed facility type.
+    format:
+      type: number
+    synonyms:
+      - Sector Sort
+  - name: territory
+    expr: territory
+    display_name: Fct Tam Buildings Territory
+    comment: Primary sales territory used for TAM planning and performance management.
+  - name: account
+    expr: account
+    display_name: Fct Tam Buildings Account
+    comment: Selected decision-maker stakeholder for the building (for example tenant, owner, or property manager) used for account-level TAM analysis.
+  - name: account_number_buildings_total
+    expr: account_number_buildings_total
+    display_name: "Fct Tam Buildings Account # Buildings"
+    format:
+      type: number
+    synonyms:
+      - Account Number Buildings Total
+      - Account Number Buildings
+  - name: account_sf_total
+    expr: account_sf_total
+    display_name: Fct Tam Buildings Account Sf Total
+    format:
+      type: number
+    synonyms:
+      - Account Sf Total
+      - Account Sf
+  - name: address
+    expr: address
+    display_name: Fct Tam Buildings Address
+  - name: branch
+    expr: branch
+    display_name: Fct Tam Buildings Branch
+    comment: Operational branch location used for local service delivery (part of Region -> Territory -> Branch hierarchy).
+  - name: building_name
+    expr: building_name
+    display_name: Fct Tam Buildings Building Name
+    synonyms:
+      - Building Name
+  - name: building_rba
+    expr: building_rba
+    display_name: Fct Tam Buildings Building Square Footage
+    comment: Rentable Building Area (RBA) in square feet. Primary size field used in TAM qualification and revenue potential calculations.
+    format:
+      type: number
+    synonyms:
+      - Building Rba
+  - name: building_status
+    expr: building_status
+    display_name: Fct Tam Buildings Building Status
+    comment: Lifecycle status of the building (for example Existing, Under Construction, Demolished). Existing buildings are typically the TAM-eligible population.
+    synonyms:
+      - Building Status
+  - name: city
+    expr: city
+    display_name: Fct Tam Buildings City
+    comment: City where the building is located.
+  - name: country
+    expr: country
+    display_name: Fct Tam Buildings Country
+    comment: Country for the building location (United States or Canada).
+  - name: cust_original_building_id
+    expr: cust_original_building_id
+    display_name: Fct Tam Buildings Cust Original Building ID
+    synonyms:
+      - Cust Original Building Id
+  - name: cust_unified_building_id
+    expr: cust_unified_building_id
+    display_name: Fct Tam Buildings Customer ID
+    comment: Unified customer-system building identifier used for customer-level distinct counts and customer match metrics.
+    synonyms:
+      - Cust Unified Building Id
+  - name: customer_match_status
+    expr: customer_match_status
+    display_name: Fct Tam Buildings Customer Match Status
+    comment: "TAM qualification category for each building (for example Matched: In TAM, No Market ID, Excluded categories, Outside Geographic TAM). Use for customer bridge analysis; do not use this as the only filter for total TAM market sizing."
+    synonyms:
+      - Customer Match Status
+  - name: customer_sf_estimate
+    expr: customer_sf_estimate
+    display_name: Fct Tam Buildings Customer SF Estimate (with No Market Data)
+    comment: Estimated customer square footage used when market data is missing (No Market ID) so customer-adjusted TAM measures remain inclusive.
+    format:
+      type: number
+    synonyms:
+      - Customer Sf Estimate
+  - name: secondary_type
+    expr: secondary_type
+    display_name: Fct Tam Buildings Facility Subtype
+    synonyms:
+      - Secondary Type
+  - name: sector
+    expr: sector
+    display_name: Fct Tam Buildings Facility Type
+    comment: Detailed facility type used for granular TAM segmentation within the consolidated facility groups.
+  - name: is_current_customer
+    expr: is_current_customer
+    display_name: Fct Tam Buildings Is Current Customer (Yes / No)
+    comment: Yes if the building is currently serviced by GDI; No for prospects/non-customers.
+    synonyms:
+      - Is Current Customer
+  - name: include_in_tam_owner
+    expr: |-
+      CASE
+        WHEN include_in_tam_owner IS TRUE THEN 'Yes'
+        WHEN include_in_tam_owner IS FALSE THEN 'No'
+        ELSE NULL
+      END
+    display_name: Fct Tam Buildings Include In Tam Owner (Yes / No)
+    comment: Looker yesno filter for owner-in-TAM stakeholder tiles.
+    synonyms:
+      - Include In Tam Owner
+  - name: include_in_tam_property_manager
+    expr: |-
+      CASE
+        WHEN include_in_tam_property_manager IS TRUE THEN 'Yes'
+        WHEN include_in_tam_property_manager IS FALSE THEN 'No'
+        ELSE NULL
+      END
+    display_name: Fct Tam Buildings Include In Tam Property Manager (Yes / No)
+    comment: Looker yesno filter for property-manager stakeholder tiles.
+    synonyms:
+      - Include In Tam Property Manager
+  - name: include_in_tam_key_tenant
+    expr: |-
+      CASE
+        WHEN include_in_tam_key_tenant IS TRUE THEN 'Yes'
+        WHEN include_in_tam_key_tenant IS FALSE THEN 'No'
+        ELSE NULL
+      END
+    display_name: Fct Tam Buildings Include In Tam Key Tenant (Yes / No)
+    comment: Looker yesno filter for key-tenant stakeholder tiles.
+    synonyms:
+      - Include In Tam Key Tenant
+  - name: key_tenant_name
+    expr: key_tenant_name
+    display_name: Fct Tam Buildings Key Tenant Name
+    comment: Key tenant associated with the building, used in stakeholder-level market and account analysis.
+    synonyms:
+      - Key Tenant Name
+  - name: key_tenant_sf_total
+    expr: key_tenant_sf_total
+    display_name: Fct Tam Buildings Key Tenant Sf Total
+    format:
+      type: number
+    synonyms:
+      - Key Tenant Sf Total
+      - Key Tenant Sf
+  - name: largest_tenant_name
+    expr: largest_tenant_name
+    display_name: Fct Tam Buildings Largest Tenant Name
+    comment: Largest tenant identified for the building.
+    synonyms:
+      - Largest Tenant Name
+  - name: latitude
+    expr: latitude
+    display_name: Fct Tam Buildings Latitude
+    comment: Latitude coordinate for mapping.
+    format:
+      type: number
+  - name: longitude
+    expr: longitude
+    display_name: Fct Tam Buildings Longitude
+    comment: Longitude coordinate for mapping.
+    format:
+      type: number
+  - name: naics
+    expr: naics
+    display_name: Fct Tam Buildings Naics
+  - name: national_or_regional_account_flag
+    expr: national_or_regional_account_flag
+    display_name: Fct Tam Buildings National or Regional
+    synonyms:
+      - National Or Regional Account Flag
+  - name: owner_name
+    expr: owner_name
+    display_name: Fct Tam Buildings Owner Name
+    comment: Building owner organization.
+    synonyms:
+      - Owner Name
+  - name: owner_sf_total
+    expr: owner_sf_total
+    display_name: Fct Tam Buildings Owner Sf Total
+    format:
+      type: number
+    synonyms:
+      - Owner Sf Total
+      - Owner Sf
+  - name: cust_parent_customer
+    expr: cust_parent_customer
+    display_name: Fct Tam Buildings Parent Customer
+    comment: Parent company rollup used for account-family analysis across multiple buildings and geographies.
+    synonyms:
+      - Cust Parent Customer
+  - name: parent_cust_sf_estimate
+    expr: parent_cust_sf_estimate
+    display_name: Fct Tam Buildings Parent Customer SF Estimate (with No Market Data)
+    format:
+      type: number
+    synonyms:
+      - Parent Cust Sf Estimate
+  - name: property_id
+    expr: property_id
+    display_name: Fct Tam Buildings Property ID
+    comment: Primary key for TAM buildings; unique building identifier and the recommended join key for building-grain analysis.
+    synonyms:
+      - Property Id
+  - name: property_manager_name
+    expr: property_manager_name
+    display_name: Fct Tam Buildings Property Manager Name
+    comment: Property manager organization for the building.
+    synonyms:
+      - Property Manager Name
+  - name: property_manager_sf_total
+    expr: property_manager_sf_total
+    display_name: Fct Tam Buildings Property Manager Sf Total
+    format:
+      type: number
+    synonyms:
+      - Property Manager Sf Total
+      - Property Manager Sf
+  - name: region
+    expr: region
+    display_name: Fct Tam Buildings Region
+    comment: Top-level sales geography used for leadership reporting and security filtering.
+  - name: bdm_sales_name
+    expr: bdm_sales_name
+    display_name: Fct Tam Buildings Sales BDM Name
+    synonyms:
+      - Bdm Sales Name
+  - name: vp_sales_name
+    expr: vp_sales_name
+    display_name: Fct Tam Buildings Sales VP Name
+    synonyms:
+      - Vp Sales Name
+  - name: state
+    expr: state
+    display_name: Fct Tam Buildings State
+    comment: State or province where the building is located.
+  - name: industry
+    expr: industry
+    display_name: Fct Tam Buildings Tenant Industry
+  - name: outside_geographic_tam
+    expr: outside_geographic_tam
+    display_name: Fct Tam Buildings View Customers Outside of Geographic TAM?
+    comment: Flag used to identify customer records outside the formal geographic TAM definition.
+    synonyms:
+      - Outside Geographic Tam
+  - name: zip
+    expr: zip
+    display_name: Fct Tam Buildings Zip
+measures:
+  - name: acv_match_out_of_tam_building_size
+    expr: "COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'Matched: Excluded < 100k Sq Ft'), 0)"
+    display_name: Fct Tam Buildings ACV Matched Excluded Less Than 100k Sq Ft
+    comment: CAD annual contract value in millions for the fixed legacy building-size exclusion status.
+    synonyms:
+      - excluded size ACV
+      - out of TAM building size ACV
+      - "Fct Tam Buildings ACV Matched: Excluded < 100k Sq Ft"
+      - Acv Match Out Of Tam Building Size
+    format:
+      type: currency
+      currency_code: CAD
+  - name: acv_match_out_of_tam_less_than_20k
+    expr: "COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'Matched: Excluded < 20k Sq Ft'), 0)"
+    display_name: Fct Tam Buildings ACV Matched Excluded Less Than 20k Sq Ft
+    comment: CAD annual contract value in millions for customers excluded below 20k square feet.
+    synonyms:
+      - excluded under 20k ACV
+      - "Fct Tam Buildings ACV Matched: Excluded < 20k Sq Ft"
+      - Acv Match Out Of Tam Less Than 20k
+    format:
+      type: currency
+      currency_code: CAD
+  - name: acv_match_out_of_tam_not_built
+    expr: "COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'Matched: Excluded by Building Not Built'), 0)"
+    display_name: Fct Tam Buildings ACV Matched Excluded by Building Not Built
+    comment: CAD annual contract value in millions excluded because buildings are not built.
+    synonyms:
+      - not built ACV
+      - "Fct Tam Buildings ACV Matched: Excluded by Building Not Built"
+      - Acv Match Out Of Tam Not Built
+    format:
+      type: currency
+      currency_code: CAD
+  - name: acv_match_out_of_tam_property_type
+    expr: "COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'Matched: Excluded by Property Type'), 0)"
+    display_name: Fct Tam Buildings ACV Matched Excluded by Property Type
+    comment: CAD annual contract value in millions excluded by property type.
+    synonyms:
+      - residential exclusion ACV
+      - "Fct Tam Buildings ACV Matched: Excluded by Property Type"
+      - Acv Match Out Of Tam Property Type
+    format:
+      type: currency
+      currency_code: CAD
+  - name: acv_match_out_of_tam
+    expr: "COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status IN ('Matched: Excluded by Building Not Built', 'Matched: Excluded < 20k Sq Ft', 'Matched: Excluded by Property Type', 'Matched: Excluded < 100k Sq Ft')), 0)"
+    display_name: Fct Tam Buildings ACV Matched Excluded from TAM
+    comment: Total CAD annual contract value in millions for matched customers excluded from TAM.
+    synonyms:
+      - excluded from TAM ACV
+      - out of TAM ACV
+      - "Fct Tam Buildings ACV Matched: Excluded from TAM"
+      - Acv Match Out Of Tam
+    format:
+      type: currency
+      currency_code: CAD
+  - name: acv_match_in_tam
+    expr: "COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'Matched: In TAM'), 0)"
+    display_name: Fct Tam Buildings ACV Matched In TAM
+    comment: CAD annual contract value in millions for customers matched in TAM.
+    synonyms:
+      - in TAM ACV
+      - "Fct Tam Buildings ACV Matched: In TAM"
+      - Acv Match In Tam
+    format:
+      type: currency
+      currency_code: CAD
+  - name: acv_match_in_tam_plus_no_data
+    expr: "COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE (customer_match_status <> 'Not a Customer' OR customer_match_status IS NULL) AND ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)"
+    display_name: Fct Tam Buildings ACV Matched In TAM Plus Customers Included
+    comment: CAD ACV in millions for customer sites included in extended TAM.
+    synonyms:
+      - extended TAM ACV
+      - "Fct Tam Buildings ACV Matched: In TAM Plus Customers Included"
+      - Acv Match In Tam Plus No Data
+    format:
+      type: currency
+      currency_code: CAD
+  - name: acv_no_market_data
+    expr: COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'No Market ID'), 0)
+    display_name: Fct Tam Buildings ACV No Market ID
+    comment: CAD ACV in millions for customers without a market identifier.
+    synonyms:
+      - no market ID ACV
+      - Acv No Market Data
+    format:
+      type: currency
+      currency_code: CAD
+  - name: acv_no_market_data_excluded
+    expr: COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'No Market ID' AND lower(include_in_tam_customer_estimate) = 'no'), 0)
+    display_name: Fct Tam Buildings ACV No Market ID Customers Excluded
+    comment: CAD ACV in millions for excluded customers without a market identifier.
+    synonyms:
+      - excluded no market ID ACV
+      - Acv No Market Data Excluded
+    format:
+      type: currency
+      currency_code: CAD
+  - name: acv_no_match_has_market_data
+    expr: "COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'Not Matched: Market Data Not Pulled (Yet)'), 0)"
+    display_name: Fct Tam Buildings ACV Not Matched Market Data Not Pulled Yet
+    comment: CAD ACV in millions for customer sites awaiting market-data retrieval.
+    synonyms:
+      - market data not pulled ACV
+      - "Fct Tam Buildings ACV Not Matched: Market Data Not Pulled (Yet)"
+      - Acv No Match Has Market Data
+    format:
+      type: currency
+      currency_code: CAD
+  - name: customer_acv_outside_geographic_tam
+    expr: COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status = 'Outside Geographic TAM'), 0)
+    display_name: Fct Tam Buildings ACV Outside Geographic TAM
+    comment: CAD ACV in millions outside the geographic TAM.
+    synonyms:
+      - outside geography ACV
+      - Customer Acv Outside Geographic Tam
+    format:
+      type: currency
+      currency_code: CAD
+  - name: acv_market_data_subtotal
+    expr: "COALESCE(SUM(_mv_customer_acv_year_cad / 1000000.0) FILTER (WHERE customer_match_status IN ('Matched: In TAM', 'Matched: Excluded by Property Type', 'Matched: Excluded by Building Not Built', 'Matched: Excluded < 100k Sq Ft', 'Outside Geographic TAM', 'Matched: Excluded < 20k Sq Ft')), 0)"
+    display_name: Fct Tam Buildings ACV Total Customers with Market Data
+    comment: CAD ACV in millions for customers whose market data has been classified.
+    synonyms:
+      - market data ACV subtotal
+      - Acv Market Data Subtotal
+    format:
+      type: currency
+      currency_code: CAD
+  - name: accounts_count
+    expr: COALESCE(COUNT(DISTINCT account), 0)
+    display_name: Fct Tam Buildings Account Count
+    comment: Distinct count of account decision-makers in the result set.
+    synonyms:
+      - distinct accounts
+      - account decision makers
+      - Accounts Count
+      - Accounts
+    format:
+      type: number
+  - name: avg_acct_sf_per_building_customer_adjusted
+    expr: |-
+      COALESCE(SUM(COALESCE(building_sf_occupied_by_account, customer_sf_estimate)) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)
+      / NULLIF(COUNT(DISTINCT property_id) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)
+    display_name: Fct Tam Buildings Average Building Size (Sq Ft)
+    comment: Average eligible TAM building size using occupied SF with customer estimate fallback.
+    synonyms:
+      - average TAM building size
+      - average building SF
+      - Avg Acct Sf Per Building Customer Adjusted
+      - Acct Sf Per Building Customer Adjusted
+    format:
+      type: number
+  - name: bridge_acv_crit_account_scale
+    expr: "COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE (customer_match_status = 'Matched: In TAM' AND NOT (coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)) OR customer_match_status = 'Matched: Excluded < 100k Sq Ft' OR (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) < square_footage_threshold) OR customer_match_status NOT IN ('Not a Customer', 'Matched: In TAM', 'Matched: Excluded < 100k Sq Ft', 'No Market ID', 'Outside Geographic TAM', 'Matched: Excluded < 20k Sq Ft', 'Matched: Excluded by Property Type', 'Matched: Excluded by Building Not Built')), 0)"
+    display_name: Fct Tam Buildings Bridge ACV Account Scale ($MM)
+    comment: Selected-currency ACV in millions for account-scale-related bridge exclusions.
+    synonyms:
+      - account scale bridge ACV
+      - "Fct Tam Buildings Bridge ACV: + Account Scale ($MM)"
+      - Bridge Acv Crit Account Scale
+    format:
+      type: number
+  - name: bridge_acv_excl_not_built
+    expr: "COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE customer_match_status = 'Matched: Excluded by Building Not Built'), 0)"
+    display_name: Fct Tam Buildings Bridge ACV Excluded Building Not Built ($MM)
+    comment: Selected-currency bridge ACV in millions excluded because buildings are not built.
+    synonyms:
+      - not built bridge ACV
+      - "Fct Tam Buildings Bridge ACV: + Excluded - Building Not Built ($MM)"
+      - Bridge Acv Excl Not Built
+    format:
+      type: number
+  - name: bridge_acv_excl_20k
+    expr: "COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE customer_match_status = 'Matched: Excluded < 20k Sq Ft'), 0)"
+    display_name: Fct Tam Buildings Bridge ACV Excluded Less Than 20k ($MM)
+    comment: Selected-currency bridge ACV in millions excluded below 20k square feet.
+    synonyms:
+      - under 20k bridge ACV
+      - "Fct Tam Buildings Bridge ACV: + Excluded < 20k ($MM)"
+      - Bridge Acv Excl 20k
+    format:
+      type: number
+  - name: bridge_acv_excl_size
+    expr: "COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE (customer_match_status = 'Matched: In TAM' AND NOT (coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)) OR customer_match_status = 'Matched: Excluded < 100k Sq Ft'), 0)"
+    display_name: Fct Tam Buildings Bridge ACV Excluded Below Threshold ($MM)
+    comment: Selected-currency bridge ACV in millions failing the active size threshold.
+    synonyms:
+      - size exclusion bridge ACV
+      - "Fct Tam Buildings Bridge ACV: + Excluded < Threshold (Size) ($MM)"
+      - Bridge Acv Excl Size
+    format:
+      type: number
+  - name: bridge_acv_not_pulled
+    expr: "COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE customer_match_status NOT IN ('Not a Customer', 'Matched: In TAM', 'Matched: Excluded < 100k Sq Ft', 'No Market ID', 'Outside Geographic TAM', 'Matched: Excluded < 20k Sq Ft', 'Matched: Excluded by Property Type', 'Matched: Excluded by Building Not Built')), 0)"
+    display_name: Fct Tam Buildings Bridge ACV Market Data Not Pulled ($MM)
+    comment: Selected-currency bridge ACV in millions in the fallback market-data bucket.
+    synonyms:
+      - not pulled bridge ACV
+      - "Fct Tam Buildings Bridge ACV: + Market Data Not Pulled ($MM)"
+      - Bridge Acv Not Pulled
+    format:
+      type: number
+  - name: bridge_acv_no_market_excl
+    expr: COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) < square_footage_threshold), 0)
+    display_name: Fct Tam Buildings Bridge ACV No Market ID Excluded ($MM)
+    comment: Selected-currency ACV in millions for No Market ID customers below the active threshold.
+    synonyms:
+      - excluded no market ID bridge ACV
+      - "Fct Tam Buildings Bridge ACV: + No Market ID Excluded ($MM)"
+      - Bridge Acv No Market Excl
+    format:
+      type: number
+  - name: bridge_acv_outside_geo
+    expr: COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE customer_match_status = 'Outside Geographic TAM'), 0)
+    display_name: Fct Tam Buildings Bridge ACV Outside Geographic TAM ($MM)
+    comment: Selected-currency bridge ACV in millions outside geographic TAM.
+    synonyms:
+      - outside geography bridge ACV
+      - "Fct Tam Buildings Bridge ACV: + Outside Geographic TAM ($MM)"
+      - Bridge Acv Outside Geo
+    format:
+      type: number
+  - name: bridge_acv_residential
+    expr: "COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE customer_match_status = 'Matched: Excluded by Property Type'), 0)"
+    display_name: Fct Tam Buildings Bridge ACV Residential ($MM)
+    comment: Selected-currency bridge ACV in millions excluded for residential property type.
+    synonyms:
+      - residential bridge ACV
+      - "Fct Tam Buildings Bridge ACV: + Residential ($MM)"
+      - Bridge Acv Residential
+    format:
+      type: number
+  - name: bridge_acv_tam_exclusion
+    expr: "COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE customer_match_status <> 'Not a Customer' AND customer_match_status <> 'Outside Geographic TAM' AND NOT ((customer_match_status = 'Matched: In TAM' AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold) OR (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold))), 0)"
+    display_name: Fct Tam Buildings Bridge ACV TAM Exclusion ($MM)
+    comment: Selected-currency ACV in millions excluded by building type, size, or unavailable market data.
+    synonyms:
+      - TAM exclusion bridge ACV
+      - "Fct Tam Buildings Bridge ACV: + TAM Exclusion (Building Type or Size) ($MM)"
+      - Bridge Acv Tam Exclusion
+    format:
+      type: number
+  - name: bridge_acv_in_tam
+    expr: "COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE (customer_match_status = 'Matched: In TAM' AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold) OR (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold)), 0)"
+    display_name: Fct Tam Buildings Bridge ACV Customers In TAM ($MM)
+    comment: Selected-currency ACV in millions for active customers inside TAM.
+    synonyms:
+      - in TAM bridge ACV
+      - "Fct Tam Buildings Bridge ACV: Customers In TAM ($MM)"
+      - Bridge Acv In Tam
+    format:
+      type: number
+  - name: bridge_acv_total
+    expr: COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END / 1000000.0) FILTER (WHERE customer_match_status <> 'Not a Customer'), 0)
+    display_name: Fct Tam Buildings Bridge ACV Total Active Customers ($MM)
+    comment: Selected-currency ACV in millions for all active customer bridge buckets.
+    synonyms:
+      - total bridge ACV
+      - active customer ACV
+      - "Fct Tam Buildings Bridge ACV: Total Active Customers ($MM)"
+      - Bridge Acv Total
+      - Bridge Acv
+    format:
+      type: number
+  - name: bridge_customers_crit_account_scale
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE (customer_match_status = 'Matched: In TAM' AND NOT (coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)) OR customer_match_status = 'Matched: Excluded < 100k Sq Ft' OR (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) < square_footage_threshold) OR customer_match_status NOT IN ('Not a Customer', 'Matched: In TAM', 'Matched: Excluded < 100k Sq Ft', 'No Market ID', 'Outside Geographic TAM', 'Matched: Excluded < 20k Sq Ft', 'Matched: Excluded by Property Type', 'Matched: Excluded by Building Not Built')), 0)"
+    display_name: Fct Tam Buildings Bridge Account Scale
+    comment: Distinct customer sites in account-scale-related bridge exclusions.
+    synonyms:
+      - account scale bridge customers
+      - "Fct Tam Buildings Bridge: + Account Scale"
+      - Bridge Customers Crit Account Scale
+    format:
+      type: number
+  - name: bridge_customers_excl_not_built
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Matched: Excluded by Building Not Built'), 0)"
+    display_name: Fct Tam Buildings Bridge Excluded Building Not Built
+    comment: Distinct customer sites excluded because buildings are not built.
+    synonyms:
+      - not built bridge customers
+      - "Fct Tam Buildings Bridge: + Excluded - Building Not Built"
+      - Bridge Customers Excl Not Built
+    format:
+      type: number
+  - name: bridge_customers_excl_20k
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Matched: Excluded < 20k Sq Ft'), 0)"
+    display_name: Fct Tam Buildings Bridge Excluded Less Than 20k
+    comment: Distinct customer sites excluded below 20k square feet.
+    synonyms:
+      - under 20k bridge customers
+      - "Fct Tam Buildings Bridge: + Excluded < 20k"
+      - Bridge Customers Excl 20k
+    format:
+      type: number
+  - name: bridge_customers_excl_size
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE (customer_match_status = 'Matched: In TAM' AND NOT (coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)) OR customer_match_status = 'Matched: Excluded < 100k Sq Ft'), 0)"
+    display_name: Fct Tam Buildings Bridge Excluded Below Threshold
+    comment: Distinct matched customer sites below the selected account square-footage threshold.
+    synonyms:
+      - size exclusion bridge customers
+      - "Fct Tam Buildings Bridge: + Excluded < Threshold (Size)"
+      - Bridge Customers Excl Size
+    format:
+      type: number
+  - name: bridge_customers_not_pulled
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status NOT IN ('Not a Customer', 'Matched: In TAM', 'Matched: Excluded < 100k Sq Ft', 'No Market ID', 'Outside Geographic TAM', 'Matched: Excluded < 20k Sq Ft', 'Matched: Excluded by Property Type', 'Matched: Excluded by Building Not Built')), 0)"
+    display_name: Fct Tam Buildings Bridge Market Data Not Pulled
+    comment: Distinct active customer sites in the fallback market-data bucket.
+    synonyms:
+      - not pulled bridge customers
+      - "Fct Tam Buildings Bridge: + Market Data Not Pulled"
+      - Bridge Customers Not Pulled
+    format:
+      type: number
+  - name: bridge_customers_no_market_excl
+    expr: COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) < square_footage_threshold), 0)
+    display_name: Fct Tam Buildings Bridge No Market ID Excluded
+    comment: Distinct No Market ID customer sites below the selected threshold.
+    synonyms:
+      - excluded no market ID customers
+      - "Fct Tam Buildings Bridge: + No Market ID Excluded"
+      - Bridge Customers No Market Excl
+    format:
+      type: number
+  - name: bridge_customers_outside_geo
+    expr: COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Outside Geographic TAM'), 0)
+    display_name: Fct Tam Buildings Bridge Outside Geographic TAM
+    comment: Distinct active customer sites outside geographic TAM.
+    synonyms:
+      - outside geography bridge customers
+      - "Fct Tam Buildings Bridge: + Outside Geographic TAM"
+      - Bridge Customers Outside Geo
+    format:
+      type: number
+  - name: bridge_customers_residential
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Matched: Excluded by Property Type'), 0)"
+    display_name: Fct Tam Buildings Bridge Residential
+    comment: Distinct customer sites excluded for residential property type.
+    synonyms:
+      - residential bridge customers
+      - "Fct Tam Buildings Bridge: + Residential"
+      - Bridge Customers Residential
+    format:
+      type: number
+  - name: bridge_customers_tam_exclusion
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status <> 'Not a Customer' AND customer_match_status <> 'Outside Geographic TAM' AND NOT ((customer_match_status = 'Matched: In TAM' AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold) OR (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold))), 0)"
+    display_name: Fct Tam Buildings Bridge TAM Exclusion
+    comment: Distinct customer sites excluded by building type, size, or unavailable market data.
+    synonyms:
+      - TAM exclusion bridge customers
+      - "Fct Tam Buildings Bridge: + TAM Exclusion (Building Type or Size)"
+      - Bridge Customers Tam Exclusion
+    format:
+      type: number
+  - name: bridge_customers_in_tam
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE (customer_match_status = 'Matched: In TAM' AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold) OR (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold)), 0)"
+    display_name: Fct Tam Buildings Bridge Customers In TAM
+    comment: Distinct active customer sites inside TAM at the selected threshold.
+    synonyms:
+      - in TAM bridge customers
+      - "Fct Tam Buildings Bridge: Customers In TAM"
+      - Bridge Customers In Tam
+    format:
+      type: number
+  - name: bridge_customers_total
+    expr: COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status <> 'Not a Customer'), 0)
+    display_name: Fct Tam Buildings Bridge Total Active Customers
+    comment: Distinct active customer sites across all non-null bridge buckets.
+    synonyms:
+      - total bridge customers
+      - active customer sites
+      - "Fct Tam Buildings Bridge: Total Active Customers"
+      - Bridge Customers Total
+      - Bridge Customers
+    format:
+      type: number
+  - name: building_penetration_customer_adjusted
+    expr: |-
+      COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE (customer_match_status <> 'Not a Customer' OR customer_match_status IS NULL) AND ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)
+      / NULLIF(COUNT(DISTINCT property_id) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)
+    display_name: Fct Tam Buildings Building Penetration %
+    comment: Share of eligible TAM buildings currently serviced by GDI.
+    synonyms:
+      - building penetration
+      - customer site penetration
+      - Building Penetration Customer Adjusted
+    format:
+      type: percentage
+  - name: building_sf_occupied_by_account_adjusted_sum
+    expr: "COALESCE(SUM(COALESCE(building_sf_occupied_by_account, customer_sf_estimate)) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)"
+    display_name: Fct Tam Buildings Building SF in TAM
+    comment: Total eligible square footage using occupied SF with customer estimate fallback.
+    synonyms:
+      - TAM building SF
+      - occupied square footage
+      - Building Sf Occupied By Account Adjusted Sum
+      - Building Sf Occupied By Account Adjusted
+    format:
+      type: number
+  - name: rba_sum
+    expr: COALESCE(SUM(building_rba), 0)
+    display_name: Fct Tam Buildings Building Total SF
+    comment: Total rentable building area in square feet.
+    synonyms:
+      - total RBA
+      - building square feet
+      - Rba Sum
+      - Rba
+    format:
+      type: number
+  - name: buildings_count_customer_adjusted
+    expr: "COALESCE(COUNT(DISTINCT property_id) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)"
+    display_name: Fct Tam Buildings Buildings in TAM
+    comment: Distinct eligible TAM buildings at the selected threshold.
+    synonyms:
+      - TAM building count
+      - eligible buildings
+      - Buildings Count Customer Adjusted
+      - Buildings Customer Adjusted
+    format:
+      type: number
+  - name: count
+    expr: COALESCE(COUNT(*), 0)
+    display_name: Fct Tam Buildings Count
+    comment: Count of source building rows.
+    synonyms:
+      - row count
+      - building records
+    format:
+      type: number
+  - name: customer_acv_year_sum_outside_tam
+    expr: "COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END) FILTER (WHERE NOT ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)"
+    display_name: Fct Tam Buildings Customer Annual Contract Value Outside TAM
+    comment: Annualized customer contract value outside extended TAM in the selected currency.
+    synonyms:
+      - outside TAM annualized revenue
+      - outside TAM ACV
+      - Customer Acv Year Sum Outside Tam
+      - Customer Acv Year Outside Tam
+    format:
+      type: currency
+      currency_code: CAD
+  - name: customer_gross_margin_customer_adjusted
+    expr: |-
+      COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_gross_profit_usd ELSE _mv_customer_gross_profit_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)
+      / NULLIF(COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_revenue_usd ELSE _mv_customer_revenue_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0), 0)
+    display_name: Fct Tam Buildings Customer Gross Margin
+    comment: Gross profit divided by customer revenue for customer business in extended TAM.
+    synonyms:
+      - gross margin
+      - customer margin
+      - Customer Gross Margin Customer Adjusted
+    format:
+      type: percentage
+  - name: customer_gross_profit_sum_customer_adjusted
+    expr: "COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_gross_profit_usd ELSE _mv_customer_gross_profit_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)"
+    display_name: Fct Tam Buildings Customer Gross Profit
+    comment: Customer gross profit across extended TAM in the selected currency.
+    synonyms:
+      - gross profit
+      - customer GP
+      - Customer Gross Profit Sum Customer Adjusted
+      - Customer Gross Profit Customer Adjusted
+    format:
+      type: currency
+      currency_code: CAD
+  - name: customer_revenue_sum_customer_adjusted
+    expr: "COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_revenue_usd ELSE _mv_customer_revenue_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)"
+    display_name: Fct Tam Buildings Customer Revenue
+    comment: Customer revenue across extended TAM in the selected currency.
+    synonyms:
+      - actual customer revenue
+      - in-scope customer revenue
+      - Customer Revenue Sum Customer Adjusted
+      - Customer Revenue Customer Adjusted
+    format:
+      type: currency
+      currency_code: CAD
+  - name: customers_site_count_outside_tam
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE NOT ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)"
+    display_name: Fct Tam Buildings Customer Sites Outside TAM Count
+    comment: Distinct customer sites outside extended TAM.
+    synonyms:
+      - outside TAM customer sites
+      - excluded customer sites
+      - Customers Site Count Outside Tam
+      - Customers Site Outside Tam
+    format:
+      type: number
+  - name: max_rate
+    expr: COALESCE(PERCENTILE_APPROX(CASE WHEN lower(currency) = 'usd' THEN _mv_rate_usd ELSE _mv_rate_cad END, 0.5), 0)
+    display_name: Fct Tam Buildings Facility Type Estimated Revenue Per Sq Ft
+    comment: Median facility-type revenue rate per square foot in the selected currency.
+    synonyms:
+      - median rate
+      - revenue rate per square foot
+      - Fct Tam Buildings Facility Type Estimated Revenue $ / Sq Ft
+      - Max Rate
+      - Rate
+    format:
+      type: currency
+      currency_code: CAD
+  - name: customer_acv_year_sum_customer_adjusted
+    expr: "COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)"
+    display_name: Fct Tam Buildings GDI Annualized Revenue ($)
+    comment: Annualized customer contract value within extended TAM in the selected currency.
+    synonyms:
+      - GDI annualized revenue
+      - in-TAM ACV
+      - Customer Acv Year Sum Customer Adjusted
+      - Customer Acv Year Customer Adjusted
+    format:
+      type: currency
+      currency_code: CAD
+  - name: customers_site_count_adjusted
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE (customer_match_status <> 'Not a Customer' OR customer_match_status IS NULL) AND ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)"
+    display_name: Fct Tam Buildings GDI Customer Sites
+    comment: Distinct customer sites included in extended TAM.
+    synonyms:
+      - GDI customer sites
+      - customer buildings in TAM
+      - Customers Site Count Adjusted
+      - Customers Site Adjusted
+    format:
+      type: number
+  - name: match_out_of_tam_building_size
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Matched: Excluded < 100k Sq Ft'), 0)"
+    display_name: Fct Tam Buildings Matched Excluded Less Than 100k Sq Ft
+    comment: Distinct customer sites with the fixed legacy size-exclusion status.
+    synonyms:
+      - matched size exclusions
+      - "Fct Tam Buildings Matched: Excluded < 100k Sq Ft"
+      - Match Out Of Tam Building Size
+    format:
+      type: number
+  - name: match_out_of_tam_less_than_20k
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Matched: Excluded < 20k Sq Ft'), 0)"
+    display_name: Fct Tam Buildings Matched Excluded Less Than 20k Sq Ft
+    comment: Distinct matched customer sites excluded below 20k square feet.
+    synonyms:
+      - matched under 20k exclusions
+      - "Fct Tam Buildings Matched: Excluded < 20k Sq Ft"
+      - Match Out Of Tam Less Than 20k
+    format:
+      type: number
+  - name: match_out_of_tam_not_built
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Matched: Excluded by Building Not Built'), 0)"
+    display_name: Fct Tam Buildings Matched Excluded by Building Not Built
+    comment: Distinct matched customer sites excluded because buildings are not built.
+    synonyms:
+      - matched not built exclusions
+      - "Fct Tam Buildings Matched: Excluded by Building Not Built"
+      - Match Out Of Tam Not Built
+    format:
+      type: number
+  - name: match_out_of_tam_property_type
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Matched: Excluded by Property Type'), 0)"
+    display_name: Fct Tam Buildings Matched Excluded by Property Type
+    comment: Distinct matched customer sites excluded by property type.
+    synonyms:
+      - matched residential exclusions
+      - "Fct Tam Buildings Matched: Excluded by Property Type"
+      - Match Out Of Tam Property Type
+    format:
+      type: number
+  - name: match_out_of_tam
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status IN ('Matched: Excluded by Building Not Built', 'Matched: Excluded < 20k Sq Ft', 'Matched: Excluded by Property Type', 'Matched: Excluded < 100k Sq Ft')), 0)"
+    display_name: Fct Tam Buildings Matched Excluded from TAM
+    comment: Distinct matched customer sites excluded from TAM.
+    synonyms:
+      - matched out of TAM
+      - matched exclusions
+      - "Fct Tam Buildings Matched: Excluded from TAM"
+      - Match Out Of Tam
+    format:
+      type: number
+  - name: match_in_tam
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Matched: In TAM'), 0)"
+    display_name: Fct Tam Buildings Matched In TAM
+    comment: Distinct customer sites with Matched In TAM status.
+    synonyms:
+      - matched TAM customers
+      - "Fct Tam Buildings Matched: In TAM"
+      - Match In Tam
+    format:
+      type: number
+  - name: match_in_tam_plus_no_data
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE (customer_match_status <> 'Not a Customer' OR customer_match_status IS NULL) AND ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)"
+    display_name: Fct Tam Buildings Matched In TAM Plus Customers Included
+    comment: Distinct customer sites included in extended TAM, including eligible No Market ID sites.
+    synonyms:
+      - extended TAM customer sites
+      - "Fct Tam Buildings Matched: In TAM Plus Customers Included"
+      - Match In Tam Plus No Data
+    format:
+      type: number
+  - name: no_market_data
+    expr: COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'No Market ID'), 0)
+    display_name: Fct Tam Buildings No Market ID
+    comment: Distinct customer sites without a market identifier.
+    synonyms:
+      - no market ID customers
+      - No Market Data
+    format:
+      type: number
+  - name: no_market_data_excluded
+    expr: COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'No Market ID' AND lower(include_in_tam_customer_estimate) = 'no'), 0)
+    display_name: Fct Tam Buildings No Market ID Customers Excluded
+    comment: Distinct excluded customer sites without a market identifier.
+    synonyms:
+      - excluded no market ID sites
+      - No Market Data Excluded
+    format:
+      type: number
+  - name: no_market_data_included
+    expr: COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'No Market ID' AND lower(include_in_tam_customer_estimate) = 'yes'), 0)
+    display_name: Fct Tam Buildings No Market ID Customers Included
+    comment: Distinct included customer sites without a market identifier.
+    synonyms:
+      - included no market ID sites
+      - No Market Data Included
+    format:
+      type: number
+  - name: no_match_has_market_data
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Not Matched: Market Data Not Pulled (Yet)'), 0)"
+    display_name: Fct Tam Buildings Not Matched Market Data Not Pulled Yet
+    comment: Distinct customer sites awaiting market-data retrieval.
+    synonyms:
+      - market data not pulled customers
+      - "Fct Tam Buildings Not Matched: Market Data Not Pulled (Yet)"
+      - No Match Has Market Data
+    format:
+      type: number
+  - name: customer_outside_geographic_tam
+    expr: COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status = 'Outside Geographic TAM'), 0)
+    display_name: Fct Tam Buildings Outside Geographic TAM
+    comment: Distinct customer sites outside geographic TAM.
+    synonyms:
+      - outside geographic TAM customers
+      - Customer Outside Geographic Tam
+    format:
+      type: number
+  - name: revenue_share_customer_adjusted
+    expr: |-
+      COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_customer_acv_year_usd ELSE _mv_customer_acv_year_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)
+      / NULLIF(COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_revenue_estimate_usd ELSE _mv_revenue_estimate_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0), 0)
+    display_name: Fct Tam Buildings Revenue Share %
+    comment: GDI annualized customer revenue divided by estimated TAM revenue.
+    synonyms:
+      - revenue share
+      - TAM market share
+      - Revenue Share Customer Adjusted
+    format:
+      type: percentage
+  - name: revenue_estimate_sum_customer_adjusted
+    expr: "COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_revenue_estimate_usd ELSE _mv_revenue_estimate_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)"
+    display_name: Fct Tam Buildings TAM Revenue Estimate ($)
+    comment: Estimated revenue opportunity across extended TAM in the selected currency.
+    synonyms:
+      - TAM revenue estimate
+      - revenue opportunity
+      - Revenue Estimate Sum Customer Adjusted
+      - Revenue Estimate Customer Adjusted
+    format:
+      type: currency
+      currency_code: CAD
+  - name: market_data_subtotal
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status IN ('Matched: In TAM', 'Matched: Excluded by Property Type', 'Matched: Excluded by Building Not Built', 'Matched: Excluded < 100k Sq Ft', 'Outside Geographic TAM', 'Matched: Excluded < 20k Sq Ft')), 0)"
+    display_name: Fct Tam Buildings Total Customers with Market Data
+    comment: Distinct customer sites whose market data has been classified.
+    synonyms:
+      - market data customer subtotal
+      - Market Data Subtotal
+    format:
+      type: number
+  - name: building_penetration
+    expr: |-
+      COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE (customer_match_status <> 'Not a Customer' OR customer_match_status IS NULL) AND ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)
+      / NULLIF(COUNT(DISTINCT property_id) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)
+    display_name: Building Penetration
+    comment: Compatibility KPI using the adjusted penetration expression returned by compiled benchmark SQL.
+    synonyms:
+      - legacy building penetration
+    format:
+      type: percentage
+  - name: buildings_count
+    expr: "COALESCE(COUNT(DISTINCT property_id) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)"
+    display_name: Number of Buildings in TAM
+    comment: Compatibility building count using the expression returned by compiled benchmark SQL.
+    synonyms:
+      - buildings in TAM
+      - legacy building count
+      - Buildings Count
+      - Buildings
+    format:
+      type: number
+  - name: buildings_count_coverage_adjusted
+    expr: "COALESCE(COUNT(DISTINCT property_id) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0)"
+    display_name: Buildings Count Coverage Adjusted
+    comment: Benchmark compatibility count; compiled SQL supplies the customer-adjusted eligible-building population.
+    synonyms:
+      - coverage adjusted buildings
+      - Buildings Coverage Adjusted
+    format:
+      type: number
+  - name: customers_site_count
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE (customer_match_status <> 'Not a Customer' OR customer_match_status IS NULL) AND ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)"
+    display_name: Number of Customer Buildings in TAM
+    comment: Compatibility customer-site count using the expression returned by compiled benchmark SQL.
+    synonyms:
+      - customer buildings
+      - legacy customer site count
+      - Customers Site Count
+      - Customers Site
+    format:
+      type: number
+  - name: customer_sites_outside_tam
+    expr: "COALESCE(COUNT(DISTINCT cust_unified_building_id) FILTER (WHERE customer_match_status NOT IN ('Not a Customer', 'Matched: In TAM') AND NOT ((customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold))), 0)"
+    display_name: Customer Sites Outside TAM
+    comment: Dashboard custom measure counting distinct out-of-scope customer sites after status exclusions.
+    synonyms:
+      - outside TAM sites
+    format:
+      type: number
+  - name: tam_revenue_estimate_mms
+    expr: "COALESCE(SUM(CASE WHEN lower(currency) = 'usd' THEN _mv_revenue_estimate_usd ELSE _mv_revenue_estimate_cad END) FILTER (WHERE (customer_match_status = 'No Market ID' AND coalesce(parent_cust_sf_estimate, 0) >= square_footage_threshold) OR (customer_match_status IN ('Matched: In TAM', 'Not a Customer') AND coalesce(building_rba, 0) >= 20000 AND _mv_sf_threshold_basis >= square_footage_threshold)), 0) / 1000000.0"
+    display_name: TAM Revenue Estimate ($MMs)
+    comment: Estimated extended-TAM revenue in millions in the selected currency.
+    synonyms:
+      - TAM revenue millions
+      - revenue opportunity millions
+      - Tam Revenue Estimate Mms
+    format:
+      type: number
+  - name: territory_index
+    expr: COALESCE(COUNT(DISTINCT territory), 0)
+    display_name: Territory Index
+    comment: Distinct count of map-ready territory labels.
+    synonyms:
+      - territory count
+      - map territory count
+    format:
+      type: number
+comment: Migrated Looker explore gdi.tam_buildings
